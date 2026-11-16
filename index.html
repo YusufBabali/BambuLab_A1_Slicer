@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A1 Baskı Süresi</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="A1 Süre">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f2f5f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121715" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one phone-width column. Result first (time), then model and layer preview, then settings in folding groups. */
+:root{
+  --bg:#f2f5f3; --surface:#ffffff; --ink:#15201b; --muted:#5b6a63; --line:#d8dfdb;
+  --accent:#0b7f52; --accent-ink:#ffffff; --warn:#a85a00; --warn-bg:#fff3df;
+  --seg2:#5aa98a; --seg3:#9fcdb9; --seg4:#c9a35a; --seg5:#b9c3be;
+  --display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121715; --surface:#1b2320; --ink:#e7eeea; --muted:#93a39b; --line:#2c3732;
+    --accent:#45c48d; --accent-ink:#0c1512; --warn:#f0b35a; --warn-bg:#33270f;
+    --seg2:#2f8f68; --seg3:#1f5f47; --seg4:#b58a3c; --seg5:#46524c;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121715; --surface:#1b2320; --ink:#e7eeea; --muted:#93a39b; --line:#2c3732;
+  --accent:#45c48d; --accent-ink:#0c1512; --warn:#f0b35a; --warn-bg:#33270f;
+  --seg2:#2f8f68; --seg3:#1f5f47; --seg4:#b58a3c; --seg5:#46524c;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
+main{max-width:560px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--display);font-weight:600;font-size:28px;line-height:1.1;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:600;font-size:18px;margin:0;letter-spacing:.01em}
+p{margin:0}
+.sub{color:var(--muted);font-size:14px;margin-top:4px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.btn{font:600 16px var(--body);border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;cursor:pointer;min-height:44px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);width:100%;padding:14px}
+.btn:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.file{font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.time{font-family:var(--display);font-weight:600;font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
+.time small{font-size:24px;font-weight:500;color:var(--muted);margin:0 8px 0 2px}
+.label{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px}
+.tile b{display:block;font-family:var(--display);font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;line-height:1.2}
+.tile span{font-size:12px;color:var(--muted)}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line)}
+.bar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
+.note{font-size:13px;color:var(--muted)}
+.alert{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:14px}
+.sliced{border:1px solid var(--accent);border-radius:8px;padding:10px 12px;font-size:14px}
+.sliced b{font-family:var(--display);font-size:20px}
+canvas{display:block;width:100%;border-radius:8px}
+#view{height:260px;background:var(--bg);touch-action:none}
+#layerView{aspect-ratio:1/1;background:#161b19}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row .btn{flex:1 1 auto;font-size:14px;font-weight:500;padding:8px 10px}
+.stepper{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center}
+.stepper .btn{padding:0;font-size:22px;line-height:1}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px;margin:0}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0;font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0;justify-content:flex-end}
+.field label{font-size:13px;color:var(--muted)}
+select,input[type=number]{font:16px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-height:44px;width:100%}
+input[type=range]{width:100%;accent-color:var(--accent);min-height:44px;margin:0}
+.check{display:flex;gap:10px;align-items:center;font-size:15px;min-height:44px}
+.check input{width:20px;height:20px;accent-color:var(--accent);flex:none}
+.wide{grid-column:1/-1}
+details{border-top:1px solid var(--line)}
+details:first-of-type{border-top:0}
+summary{font-family:var(--display);font-weight:600;font-size:17px;padding:12px 0;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;min-height:44px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-size:22px;color:var(--muted);font-weight:500}
+details[open] summary::after{content:"–"}
+details .grid{padding-bottom:16px}
+.settings{gap:0}
+.settings h2{margin-bottom:12px}
+[hidden]{display:none!important}
+@media (max-width:360px){.tiles{grid-template-columns:1fr 1fr}.time{font-size:46px}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>A1 Baskı Süresi</h1>
+    <p class="sub">Bambu Lab A1, 0,4 mm nozul. Dosya telefonundan çıkmaz, hesap burada yapılır.</p>
+  </header>
+
+  <section class="panel">
+    <input type="file" id="file" hidden>
+    <button class="btn primary" id="pickBtn" type="button">Dosya seç (STL, 3MF, OBJ)</button>
+    <div class="file" id="fileName">Örnek model gösteriliyor: 20 mm küp</div>
+    <div class="alert" id="error" hidden></div>
+  </section>
+
+  <section class="panel" aria-live="polite">
+    <div>
+      <div class="label" id="timeLabel">Tahmini süre</div>
+      <div class="time" id="time">–</div>
+    </div>
+    <div class="sliced" id="sliced" hidden></div>
+    <div class="tiles">
+      <div class="tile"><b id="grams">–</b><span>filament (g)</span></div>
+      <div class="tile"><b id="meters">–</b><span>filament (m)</span></div>
+      <div class="tile"><b id="cost">–</b><span>maliyet (₺)</span></div>
+    </div>
+    <div id="breakdown">
+      <div class="bar" id="bar"></div>
+      <div class="legend" id="legend" style="margin-top:8px"></div>
+    </div>
+    <div class="alert" id="warn" hidden></div>
+    <p class="note">Bu bir tahmindir, gerçek dilimleme değildir. Bambu Studio'nun süresinden çoğu modelde yüzde 20-25 kadar sapabilir. İlk baskından sonra "Diğer" bölümündeki düzeltme oranıyla kendi yazıcına göre ayarlayabilirsin.</p>
+  </section>
+
+  <section class="panel" id="modelPanel">
+    <h2>Model</h2>
+    <canvas id="view" aria-label="Modelin 3B görünümü. Sürükleyerek döndür, iki parmakla yakınlaştır."></canvas>
+    <div class="row">
+      <button class="btn" id="rotX" type="button">X ekseninde 90° çevir</button>
+      <button class="btn" id="rotY" type="button">Y ekseninde 90° çevir</button>
+    </div>
+    <dl class="facts">
+      <dt>Boyut</dt><dd id="fSize">–</dd>
+      <dt>Hacim</dt><dd id="fVol">–</dd>
+      <dt>Katman</dt><dd id="fLayers">–</dd>
+      <dt>Üçgen</dt><dd id="fTris">–</dd>
+    </dl>
+  </section>
+
+  <section class="panel" id="layerPanel">
+    <h2>Katman önizleme</h2>
+    <div class="note" id="lyrLabel">Katman –</div>
+    <div class="stepper">
+      <button class="btn" id="lyrDown" type="button" aria-label="Bir katman aşağı">−</button>
+      <input type="range" id="lyr" min="1" max="100" step="1" value="50" aria-label="Katman">
+      <button class="btn" id="lyrUp" type="button" aria-label="Bir katman yukarı">+</button>
+    </div>
+    <canvas id="layerView" aria-label="Seçili katmanın yukarıdan görünümü"></canvas>
+    <div class="legend">
+      <span style="--c:#f28c28">Dış duvar</span><span style="--c:#3fbf5f">İç duvar</span><span style="--c:#d2553f">Dolgu</span>
+      <span style="--c:#8e6bd8">Dolu katman</span><span style="--c:#4aa8e8">Üst ve alt yüzey</span><span style="--c:#2bb5a8">Destek</span><span style="--c:#8a938f">Kenarlık</span>
+    </div>
+    <p class="note">Kaydırıcı 3B görünümü de aynı katmandan keser. Önizleme ayarlarına göre çizilen bir şemadır, yazıcıya gidecek gerçek yol değildir.</p>
+  </section>
+
+  <section class="panel settings">
+    <h2>Baskı ayarları</h2>
+    <details open>
+      <summary>Hazır ayar ve kalite</summary>
+      <div class="grid">
+        <div class="field wide"><label for="sPreset">Hazır ayar</label>
+          <select id="sPreset"><option value="">Özel</option><option value="0.08">0,08 mm Extra Fine</option><option value="0.12">0,12 mm Fine</option><option value="0.16">0,16 mm Optimal</option><option value="0.2" selected>0,20 mm Standard</option><option value="0.2s">0,20 mm Strength</option><option value="0.24">0,24 mm Draft</option><option value="0.28">0,28 mm Extra Draft</option></select></div>
+        <div class="field"><label for="sLayer">Katman yüksekliği</label>
+          <select id="sLayer"><option value="0.08">0,08 mm</option><option value="0.12">0,12 mm</option><option value="0.16">0,16 mm</option><option value="0.2" selected>0,20 mm</option><option value="0.24">0,24 mm</option><option value="0.28">0,28 mm</option></select></div>
+        <div class="field"><label for="sLw">Çizgi genişliği (mm)</label>
+          <input type="number" id="sLw" min="0.3" max="0.8" step="0.01" value="0.42" inputmode="decimal"></div>
+        <div class="field"><label for="sMat">Malzeme</label>
+          <select id="sMat"><option value="PLA" selected>PLA</option><option value="PETG">PETG</option><option value="ABS">ABS / ASA</option><option value="TPU">TPU</option></select></div>
+        <div class="field"><label for="sMode">Yazıcı hız modu</label>
+          <select id="sMode"><option value="0.5">Sessiz (%50)</option><option value="1" selected>Standart (%100)</option><option value="1.24">Sport (%124)</option><option value="1.66">Ludicrous (%166)</option></select></div>
+      </div>
+    </details>
+    <details open>
+      <summary>Dayanım</summary>
+      <div class="grid">
+        <div class="field wide"><label for="sInfill">Dolgu yoğunluğu: <span id="infillVal">15</span>%</label>
+          <input type="range" id="sInfill" min="0" max="100" step="5" value="15"></div>
+        <div class="field"><label for="sPattern">Dolgu deseni</label>
+          <select id="sPattern"><option value="grid" selected>Izgara</option><option value="lines">Çizgi</option><option value="triangles">Üçgen</option><option value="cubic">Kübik</option><option value="gyroid">Gyroid</option><option value="honeycomb">Bal peteği</option></select></div>
+        <div class="field"><label for="sWalls">Duvar sayısı</label>
+          <input type="number" id="sWalls" min="1" max="12" step="1" value="2" inputmode="numeric"></div>
+        <div class="field"><label for="sTop">Üst katman sayısı</label>
+          <input type="number" id="sTop" min="0" max="30" step="1" value="5" inputmode="numeric"></div>
+        <div class="field"><label for="sBot">Alt katman sayısı</label>
+          <input type="number" id="sBot" min="0" max="30" step="1" value="3" inputmode="numeric"></div>
+      </div>
+    </details>
+    <details>
+      <summary>Destek ve kenarlık</summary>
+      <div class="grid">
+        <label class="check wide"><input type="checkbox" id="sSupport"> Destek ekle (kaba hesap)</label>
+        <div class="field"><label for="sAngle">Destek eşik açısı (°)</label>
+          <input type="number" id="sAngle" min="5" max="80" step="5" value="30" inputmode="numeric"></div>
+        <div class="field"><label for="sBrim">Kenarlık genişliği (mm)</label>
+          <input type="number" id="sBrim" min="0" max="20" step="1" value="0" inputmode="decimal"></div>
+      </div>
+    </details>
+    <details>
+      <summary>Hız ve ivme</summary>
+      <div class="grid">
+        <div class="field"><label for="vOut">Dış duvar (mm/sn)</label><input type="number" id="vOut" min="10" max="500" step="10" value="200" inputmode="numeric"></div>
+        <div class="field"><label for="vIn">İç duvar (mm/sn)</label><input type="number" id="vIn" min="10" max="500" step="10" value="300" inputmode="numeric"></div>
+        <div class="field"><label for="vSparse">Dolgu (mm/sn)</label><input type="number" id="vSparse" min="10" max="500" step="10" value="270" inputmode="numeric"></div>
+        <div class="field"><label for="vSolid">Dolu katman (mm/sn)</label><input type="number" id="vSolid" min="10" max="500" step="10" value="250" inputmode="numeric"></div>
+        <div class="field"><label for="vTop">Üst yüzey (mm/sn)</label><input type="number" id="vTop" min="10" max="500" step="10" value="200" inputmode="numeric"></div>
+        <div class="field"><label for="vFirst">İlk katman (mm/sn)</label><input type="number" id="vFirst" min="5" max="300" step="5" value="50" inputmode="numeric"></div>
+        <div class="field"><label for="vFirstInf">İlk katman dolgusu (mm/sn)</label><input type="number" id="vFirstInf" min="5" max="300" step="5" value="105" inputmode="numeric"></div>
+        <div class="field"><label for="vTravel">Boşta hareket (mm/sn)</label><input type="number" id="vTravel" min="50" max="1000" step="50" value="500" inputmode="numeric"></div>
+        <div class="field"><label for="aNorm">İvme (mm/sn²)</label><input type="number" id="aNorm" min="500" max="20000" step="500" value="6000" inputmode="numeric"></div>
+        <div class="field"><label for="aOut">Dış duvar ivmesi (mm/sn²)</label><input type="number" id="aOut" min="500" max="20000" step="500" value="5000" inputmode="numeric"></div>
+        <div class="field"><label for="sFlow">Maks. hacimsel hız (mm³/sn)</label><input type="number" id="sFlow" min="1" max="40" step="0.5" value="21" inputmode="decimal"></div>
+        <div class="field"><label for="sMinLayer">En kısa katman süresi (sn)</label><input type="number" id="sMinLayer" min="0" max="60" step="1" value="4" inputmode="numeric"></div>
+        <p class="note wide">Hızlar hacimsel hız sınırını aşarsa yazıcı sınırı uygular; ince katmanda sınır daha geç devreye girer.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Diğer</summary>
+      <div class="grid">
+        <div class="field"><label for="sCopies">Adet</label>
+          <input type="number" id="sCopies" min="1" max="100" step="1" value="1" inputmode="numeric"></div>
+        <div class="field"><label for="sScale">Ölçek (%)</label>
+          <input type="number" id="sScale" min="1" max="10000" step="1" value="100" inputmode="decimal"></div>
+        <div class="field"><label for="sPrice">Filament fiyatı (₺/kg)</label>
+          <input type="number" id="sPrice" min="0" step="10" value="" placeholder="örn. 700" inputmode="decimal"></div>
+        <div class="field"><label for="sCorr">Düzeltme (%)</label>
+          <input type="number" id="sCorr" min="50" max="200" step="1" value="100" inputmode="numeric"></div>
+        <label class="check wide"><input type="checkbox" id="sPrep" checked> Isınma ve tabla ölçümünü dahil et (yaklaşık 6 dk)</label>
+        <p class="note wide">Gerçek baskı tahminden uzun sürdüyse düzeltmeyi artır. Örnek: tahmin 100 dk, gerçek 115 dk ise 115 yaz.</p>
+        <button class="btn wide" id="resetBtn" type="button">Ayarları varsayılana döndür</button>
+      </div>
+    </details>
+  </section>
+</main>
+
+<script>
+/*CORE-START*/
+const Core = (() => {
+  const MATS = {
+    PLA:  {flow:21,  dens:1.24, minLayer:4},
+    PETG: {flow:13,  dens:1.27, minLayer:8},
+    ABS:  {flow:16,  dens:1.05, minLayer:3},
+    TPU:  {flow:3.6, dens:1.22, minLayer:8}
+  };
+
+  function parseSTL(buf){
+    const dv = new DataView(buf);
+    if (buf.byteLength >= 84){
+      const n = dv.getUint32(80, true);
+      if (n > 0 && 84 + n*50 === buf.byteLength){
+        const pos = new Float32Array(n*9); let o = 84;
+        for (let i=0;i<n;i++){ o += 12; for (let j=0;j<9;j++){ pos[i*9+j] = dv.getFloat32(o, true); o += 4; } o += 2; }
+        return pos;
+      }
+    }
+    const txt = new TextDecoder().decode(buf);
+    const re = /vertex\s+(\S+)\s+(\S+)\s+(\S+)/g; const a = []; let m;
+    while ((m = re.exec(txt))) a.push(+m[1], +m[2], +m[3]);
+    const n = Math.floor(a.length/9)*9;
+    return new Float32Array(a.slice(0, n));
+  }
+
+  function parseOBJ(buf){
+    const txt = new TextDecoder().decode(buf); const v = []; const out = [];
+    for (const line of txt.split('\n')){
+      if (line.startsWith('v ')){ const p = line.trim().split(/\s+/); v.push(+p[1], +p[2], +p[3]); }
+      else if (line.startsWith('f ')){
+        const p = line.trim().split(/\s+/).slice(1).map(s => { let i = parseInt(s, 10); return i < 0 ? v.length/3 + i : i - 1; });
+        for (let i=1;i+1<p.length;i++) for (const k of [p[0], p[i], p[i+1]]) out.push(v[k*3], v[k*3+1], v[k*3+2]);
+      }
+    }
+    return new Float32Array(out);
+  }
+
+  async function unzip(buf, want){
+    const dv = new DataView(buf); const u8 = new Uint8Array(buf);
+    let e = buf.byteLength - 22;
+    while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+    if (e < 0) throw new Error('zip');
+    const count = dv.getUint16(e+10, true); let o = dv.getUint32(e+16, true);
+    const files = {}; const td = new TextDecoder();
+    for (let i=0;i<count;i++){
+      if (dv.getUint32(o, true) !== 0x02014b50) break;
+      const method = dv.getUint16(o+10, true), csize = dv.getUint32(o+20, true);
+      const nl = dv.getUint16(o+28, true), el = dv.getUint16(o+30, true), cl = dv.getUint16(o+32, true);
+      const lo = dv.getUint32(o+42, true);
+      const name = td.decode(u8.subarray(o+46, o+46+nl));
+      o += 46 + nl + el + cl;
+      if (!want(name.toLowerCase())) continue;
+      const ds = lo + 30 + dv.getUint16(lo+26, true) + dv.getUint16(lo+28, true);
+      const data = u8.subarray(ds, ds + csize);
+      let raw;
+      if (method === 0) raw = data;
+      else if (method === 8){
+        const s = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+        raw = new Uint8Array(await new Response(s).arrayBuffer());
+      } else continue;
+      files[name.replace(/^\//, '')] = td.decode(raw);
+    }
+    return files;
+  }
+
+  const ID = [1,0,0, 0,1,0, 0,0,1, 0,0,0];
+  function compose(a, b){ // apply a, then b (3MF row-vector convention)
+    const r = new Array(12);
+    for (let i=0;i<3;i++) for (let j=0;j<3;j++) r[i*3+j] = a[i*3]*b[j] + a[i*3+1]*b[3+j] + a[i*3+2]*b[6+j];
+    for (let j=0;j<3;j++) r[9+j] = a[9]*b[j] + a[10]*b[3+j] + a[11]*b[6+j] + b[9+j];
+    return r;
+  }
+  function attr(s, name){ const m = new RegExp('(?:^|\\s)' + name + '="([^"]*)"').exec(s); return m ? m[1] : null; }
+  function tf(s){ const t = attr(s, 'transform'); if (!t) return ID; const a = t.trim().split(/\s+/).map(Number); return a.length === 12 && a.every(isFinite) ? a : ID; }
+  const UNITS = {micron:0.001, millimeter:1, centimeter:10, inch:25.4, foot:304.8, meter:1000};
+
+  async function parse3MF(buf){
+    const files = await unzip(buf, n => n.endsWith('.model') || n.endsWith('slice_info.config'));
+    let sliced = null;
+    for (const n in files) if (n.toLowerCase().endsWith('slice_info.config')){
+      let t = 0, w = 0, m; const rp = /key="prediction"\s+value="([\d.]+)"/g, rw = /key="weight"\s+value="([\d.]+)"/g;
+      while ((m = rp.exec(files[n]))) t += +m[1];
+      while ((m = rw.exec(files[n]))) w += +m[1];
+      if (t > 0) sliced = {time:t, grams:w};
+    }
+    const objs = {}; let root = null; let items = [];
+    for (const path in files){
+      if (!path.toLowerCase().endsWith('.model')) continue;
+      const txt = files[path];
+      const head = /<model\b[^>]*>/.exec(txt); const unit = UNITS[(head && attr(head[0], 'unit')) || 'millimeter'] || 1;
+      const ro = /<object\b([^>]*)>([\s\S]*?)<\/object>/g; let m;
+      while ((m = ro.exec(txt))){
+        const id = attr(m[1], 'id'); const body = m[2]; const o = {unit, comps:[], verts:null, tris:null};
+        const va = [], ta = []; let k;
+        const rv = /<vertex\s+x="([^"]+)"\s+y="([^"]+)"\s+z="([^"]+)"/g;
+        while ((k = rv.exec(body))) va.push(+k[1], +k[2], +k[3]);
+        const rt = /<triangle\s+v1="(\d+)"\s+v2="(\d+)"\s+v3="(\d+)"/g;
+        while ((k = rt.exec(body))) ta.push(+k[1], +k[2], +k[3]);
+        if (ta.length){ o.verts = va; o.tris = ta; }
+        const rc = /<component\b([^>]*?)\/?>/g;
+        while ((k = rc.exec(body))) o.comps.push({id:attr(k[1], 'objectid'), path:(attr(k[1], 'p:path') || path).replace(/^\//, ''), t:tf(k[1])});
+        objs[path + '|' + id] = o;
+      }
+      const b = /<build\b[^>]*>([\s\S]*?)<\/build>/.exec(txt);
+      if (b){
+        const ri = /<item\b([^>]*?)\/?>/g; let k; const list = [];
+        while ((k = ri.exec(b[1]))) list.push({id:attr(k[1], 'objectid'), path:(attr(k[1], 'p:path') || path).replace(/^\//, ''), t:tf(k[1])});
+        if (list.length && (!root || path.toLowerCase().endsWith('3dmodel.model'))){ root = path; items = list; }
+      }
+    }
+    const out = [];
+    function emit(path, id, M, depth){
+      const o = objs[path + '|' + id]; if (!o || depth > 8) return;
+      if (o.tris){
+        const v = o.verts, u = o.unit;
+        for (let i=0;i<o.tris.length;i++){
+          const a = o.tris[i]*3, x = v[a]*u, y = v[a+1]*u, z = v[a+2]*u;
+          out.push(x*M[0]+y*M[3]+z*M[6]+M[9], x*M[1]+y*M[4]+z*M[7]+M[10], x*M[2]+y*M[5]+z*M[8]+M[11]);
+        }
+      }
+      for (const c of o.comps) emit(c.path, c.id, compose(c.t, M), depth+1);
+    }
+    if (items.length) for (const it of items) emit(it.path, it.id, it.t, 0);
+    else for (const key in objs){ const i = key.lastIndexOf('|'); if (objs[key].tris) emit(key.slice(0, i), key.slice(i+1), ID, 9); }
+    return {pos:new Float32Array(out), sliced};
+  }
+
+  function parseGcodeHeader(buf){
+    const txt = new TextDecoder().decode(new Uint8Array(buf, 0, Math.min(buf.byteLength, 200000)));
+    const m = /total estimated time:\s*([^;\n\r]+)/i.exec(txt) || /estimated printing time[^=:]*[=:]\s*([^;\n\r]+)/i.exec(txt);
+    if (!m) return null;
+    let s = 0; const r = /(\d+)\s*([dhms])/g; let k;
+    while ((k = r.exec(m[1]))) s += +k[1] * ({d:86400, h:3600, m:60, s:1})[k[2]];
+    const w = /total filament weight[^:]*:\s*([\d.]+)/i.exec(txt) || /filament used \[g\]\s*=\s*([\d.]+)/i.exec(txt);
+    return s > 0 ? {time:s, grams:w ? +w[1] : 0} : null;
+  }
+
+  // Centre on the plate, drop to z=0; returns bounding size.
+  function settle(pos){
+    let a=[Infinity,Infinity,Infinity], b=[-Infinity,-Infinity,-Infinity];
+    for (let i=0;i<pos.length;i+=3) for (let j=0;j<3;j++){ const v = pos[i+j]; if (v<a[j]) a[j]=v; if (v>b[j]) b[j]=v; }
+    const cx=(a[0]+b[0])/2, cy=(a[1]+b[1])/2;
+    for (let i=0;i<pos.length;i+=3){ pos[i]-=cx; pos[i+1]-=cy; pos[i+2]-=a[2]; }
+    return [b[0]-a[0], b[1]-a[1], b[2]-a[2]];
+  }
+
+  function stats(pos, cosT){
+    if (cosT === undefined) cosT = 0.866;
+    let vol=0, top=0, bot=0, ovA=0, supVol=0; const ov = [];
+    for (let i=0;i<pos.length;i+=9){
+      const ax=pos[i],ay=pos[i+1],az=pos[i+2], bx=pos[i+3],by=pos[i+4],bz=pos[i+5], cx=pos[i+6],cy=pos[i+7],cz=pos[i+8];
+      const ux=bx-ax,uy=by-ay,uz=bz-az, vx=cx-ax,vy=cy-ay,vz=cz-az;
+      const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx;
+      vol += (ax*(by*cz-bz*cy) + ay*(bz*cx-bx*cz) + az*(bx*cy-by*cx))/6;
+      const proj = nz/2;
+      if (proj > 0) top += proj; else {
+        bot -= proj;
+        const len = Math.hypot(nx,ny,nz), zm = Math.min(az,bz,cz);
+        if (len > 0 && nz/len < -cosT && zm > 0.3){ ovA -= proj; supVol += -proj*(az+bz+cz)/3; if (ov.length < 7*80000) ov.push(ax,ay,bx,by,cx,cy,zm); }
+      }
+    }
+    // sort overhang triangles by height, highest first
+    const n = ov.length/7, idx = Array.from({length:n}, (_, i) => i).sort((p, q) => ov[q*7+6] - ov[p*7+6]);
+    const ovTris = new Float32Array(n*7);
+    for (let i=0;i<n;i++) for (let j=0;j<7;j++) ovTris[i*7+j] = ov[idx[i]*7+j];
+    return {vol:Math.abs(vol), top, bot, ovA, supVol, ovTris};
+  }
+
+  function slice(pos, h, H){
+    const N = Math.max(1, Math.ceil(H/h - 1e-6));
+    const A = new Float64Array(N), P = new Float64Array(N);
+    const z = [0,0,0];
+    for (let i=0;i<pos.length;i+=9){
+      z[0]=pos[i+2]; z[1]=pos[i+5]; z[2]=pos[i+8];
+      const zmin = Math.min(z[0],z[1],z[2]), zmax = Math.max(z[0],z[1],z[2]);
+      const k0 = Math.max(0, Math.ceil(zmin/h - 0.5)), k1 = Math.min(N-1, Math.floor(zmax/h - 0.5));
+      if (k1 < k0) continue;
+      const ux=pos[i+3]-pos[i],uy=pos[i+4]-pos[i+1],uz=z[1]-z[0], vx=pos[i+6]-pos[i],vy=pos[i+7]-pos[i+1],vz=z[2]-z[0];
+      const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz;
+      for (let k=k0;k<=k1;k++){
+        const zp = (k+0.5)*h;
+        const s0 = z[0]>zp, s1 = z[1]>zp, s2 = z[2]>zp;
+        const c = s0+s1+s2; if (c===0 || c===3) continue;
+        const lone = (s0!==s1 && s0!==s2) ? 0 : (s1!==s0 && s1!==s2) ? 1 : 2;
+        const o1 = (lone+1)%3, o2 = (lone+2)%3;
+        const lx=pos[i+lone*3], ly=pos[i+lone*3+1], lz=z[lone];
+        const t1=(zp-lz)/(z[o1]-lz), t2=(zp-lz)/(z[o2]-lz);
+        let px=lx+(pos[i+o1*3]-lx)*t1, py=ly+(pos[i+o1*3+1]-ly)*t1;
+        let qx=lx+(pos[i+o2*3]-lx)*t2, qy=ly+(pos[i+o2*3+1]-ly)*t2;
+        const dx=qx-px, dy=qy-py;
+        if (dx*ny - dy*nx < 0){ const tx=px, ty=py; px=qx; py=qy; qx=tx; qy=ty; }
+        A[k] += 0.5*(px*qy - qx*py);
+        P[k] += Math.hypot(dx, dy);
+      }
+    }
+    for (let k=0;k<N;k++) A[k] = Math.abs(A[k]);
+    return {h, N, A, P};
+  }
+
+  // Oriented outline segments [px,py,qx,qy,...] for layers ka..kb.
+  function sliceSegs(pos, h, N, ka, kb){
+    const out = []; for (let k=ka;k<=kb;k++) out.push([]);
+    const z = [0,0,0];
+    for (let i=0;i<pos.length;i+=9){
+      z[0]=pos[i+2]; z[1]=pos[i+5]; z[2]=pos[i+8];
+      const zmin = Math.min(z[0],z[1],z[2]), zmax = Math.max(z[0],z[1],z[2]);
+      const k0 = Math.max(ka, Math.ceil(zmin/h - 0.5)), k1 = Math.min(kb, Math.floor(zmax/h - 0.5));
+      if (k1 < k0) continue;
+      const ux=pos[i+3]-pos[i],uy=pos[i+4]-pos[i+1],uz=z[1]-z[0], vx=pos[i+6]-pos[i],vy=pos[i+7]-pos[i+1],vz=z[2]-z[0];
+      const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz;
+      for (let k=k0;k<=k1;k++){
+        const zp = (k+0.5)*h;
+        const s0 = z[0]>zp, s1 = z[1]>zp, s2 = z[2]>zp;
+        const c = s0+s1+s2; if (c===0 || c===3) continue;
+        const lone = (s0!==s1 && s0!==s2) ? 0 : (s1!==s0 && s1!==s2) ? 1 : 2;
+        const o1 = (lone+1)%3, o2 = (lone+2)%3;
+        const lx=pos[i+lone*3], ly=pos[i+lone*3+1], lz=z[lone];
+        const t1=(zp-lz)/(z[o1]-lz), t2=(zp-lz)/(z[o2]-lz);
+        let px=lx+(pos[i+o1*3]-lx)*t1, py=ly+(pos[i+o1*3+1]-ly)*t1;
+        let qx=lx+(pos[i+o2*3]-lx)*t2, qy=ly+(pos[i+o2*3+1]-ly)*t2;
+        const dx=qx-px, dy=qy-py;
+        if (dx*dx + dy*dy < 1e-10) continue;
+        if (dx*ny - dy*nx < 0) out[k-ka].push(qx,qy,px,py); else out[k-ka].push(px,py,qx,qy);
+      }
+    }
+    return out;
+  }
+
+  // Join segments end to start into closed outlines.
+  function chain(s){
+    const n = s.length/4, key = (x, y) => Math.round(x*1000) + ',' + Math.round(y*1000);
+    const map = new Map();
+    for (let i=0;i<n;i++){ const k = key(s[4*i], s[4*i+1]); const a = map.get(k); if (a) a.push(i); else map.set(k, [i]); }
+    const used = new Uint8Array(n), loops = [];
+    for (let i=0;i<n;i++){
+      if (used[i]) continue;
+      const loop = [s[4*i], s[4*i+1]]; let cur = i; used[i] = 1;
+      for (;;){
+        const ex = s[4*cur+2], ey = s[4*cur+3]; loop.push(ex, ey);
+        const a = map.get(key(ex, ey)); let nx = -1;
+        if (a) for (const j of a) if (!used[j]){ nx = j; break; }
+        if (nx < 0) break; used[nx] = 1; cur = nx;
+      }
+      if (loop.length >= 6) loops.push(loop);
+    }
+    return loops;
+  }
+
+  // Time for a path of length L made of straight runs about d long, with speed v and acceleration a.
+  function mt(L, v, a, d){
+    if (L <= 0) return 0;
+    d = Math.max(0.5, Math.min(d, L));
+    const t = d >= v*v/a ? d/v + v/a : 2*Math.sqrt(d/a);
+    return L/d*t;
+  }
+
+  const DEF = {lw:0.42, walls:2, topL:5, botL:3, infill:0.15, pattern:'grid', mode:1,
+    vOut:200, vIn:300, vSparse:270, vSolid:250, vTop:200, vFirst:50, vFirstInf:105, vTravel:500, vSupport:150,
+    aNorm:6000, aOut:5000, flow:21, dens:1.24, minLayer:4, copies:1, support:false, brim:0, prep:true, corr:1};
+
+  function estimate(L, st, s0){
+    const s = Object.assign({}, DEF, s0);
+    const h = L.h, lw = s.lw, li = lw*1.07, M = s.mode;
+    const cap = (v, w) => Math.min(v, s.flow/(w*h))*M;
+    const vOut = cap(s.vOut,lw), vIn = cap(s.vIn,lw), vSol = cap(s.vSolid,lw), vSp = cap(s.vSparse,li), vTop = cap(s.vTop,lw);
+    const vF = cap(s.vFirst,lw), vFI = cap(s.vFirstInf,lw), vSup = cap(s.vSupport,lw);
+    const aN = s.aNorm, aO = Math.min(s.aOut, s.aNorm), aF = Math.min(500, aN), aT = Math.min(2000, aN);
+    const c = Math.max(1, s.copies|0), K = 1.08*(s.corr || 1);
+    const I = new Float64Array(L.N), W = new Float64Array(L.N); let interiorVol = 0;
+    for (let i=0;i<L.N;i++){
+      const full = L.P[i]*s.walls*lw, wallA = Math.min(L.A[i], full);
+      W[i] = full > 0 ? wallA/full : 0; I[i] = L.A[i] - wallA; interiorVol += I[i]*h;
+    }
+    const skinVol = Math.min(interiorVol, (st.top*s.topL + st.bot*s.botL)*h);
+    const topVol = Math.min(skinVol, st.top*h);
+    const fT = interiorVol > 0 ? topVol/interiorVol : 0, f = interiorVol > 0 ? (skinVol - topVol)/interiorVol : 0;
+    let tW=0, tS=0, tSp=0, tO=0, vol=0;
+    for (let i=0;i<L.N;i++){
+      const A = L.A[i]; if (A <= 0) continue;
+      const d = Math.sqrt(A), first = i === 0;
+      const lo = L.P[i]*W[i], lin = L.P[i]*(s.walls-1)*W[i]*0.95;
+      const lt = first ? 0 : I[i]*fT/lw, ls = (first ? I[i] : I[i]*f)/lw, lsp = first ? 0 : I[i]*(1-f-fT)*s.infill/li;
+      let dsp = d*0.8;
+      if (s.pattern === 'gyroid') dsp = Math.min(dsp, 12); else if (s.pattern === 'honeycomb') dsp = Math.min(dsp, Math.max(3, 3*li/Math.max(s.infill, 0.05)));
+      let w, so, sp, br = 0;
+      if (first){
+        w = mt(lo,vF,aF,d) + mt(lin,vF,aF,d); so = mt(ls,vFI,aF,d*0.8); sp = 0;
+        if (s.brim > 0){ const n = Math.round(s.brim/lw), bl = n*L.P[i] + Math.PI*lw*n*n; br = mt(bl,vF,aF,d*1.2); vol += bl*lw*h*c; }
+      } else {
+        w = mt(lo,vOut,aO,d) + mt(lin,vIn,aN,d); so = mt(ls,vSol,aN,d*0.8) + mt(lt,vTop,aT,d*0.8); sp = mt(lsp,vSp,aN,dsp);
+      }
+      w = (w + br)*K*c; so *= K*c; sp *= K*c;
+      const ov = 1 + 2*d/Math.max(50, s.vTravel*M);
+      const raw = w + so + sp + ov;
+      tW += w; tS += so; tSp += sp; tO += ov + Math.max(0, s.minLayer - raw);
+      vol += ((lo + lin + ls + lt)*lw + lsp*li)*h*c;
+    }
+    let tSup = 0;
+    if (s.support && st.supVol > 0){
+      const sv = st.supVol*0.15;
+      tSup = mt(sv/(lw*h), vSup, aN, 10)*K*c; vol += sv*c;
+    }
+    const prep = s.prep ? 360 : 0;
+    return {
+      total: prep + tW + tS + tSp + tSup + tO,
+      parts: {walls:tW, solid:tS, infill:tSp, support:tSup, other:tO + prep},
+      grams: vol/1000*s.dens, meters: vol/2.405/1000, layers: L.N
+    };
+  }
+
+  function cube(s){
+    const h = s/2, v = [[-h,-h,0],[h,-h,0],[h,h,0],[-h,h,0],[-h,-h,s],[h,-h,s],[h,h,s],[-h,h,s]];
+    const f = [[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]];
+    const p = []; for (const t of f) for (const i of t) p.push(...v[i]);
+    return new Float32Array(p);
+  }
+
+  return {MATS, DEF, parseSTL, parseOBJ, parse3MF, parseGcodeHeader, settle, stats, slice, sliceSegs, chain, estimate, cube};
+})();
+/*CORE-END*/
+</script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const S = {pos:null, size:[0,0,0], st:null, stCos:null, layers:null, sliced:null, scale:1, noMesh:false};
+  const KEY = 'a1-sure-ayar-2';
+  const ids = ['sPreset','sLayer','sLw','sMat','sMode','sInfill','sPattern','sWalls','sTop','sBot','sSupport','sAngle','sBrim',
+    'vOut','vIn','vSparse','vSolid','vTop','vFirst','vFirstInf','vTravel','aNorm','aOut','sFlow','sMinLayer','sCopies','sPrice','sCorr','sPrep'];
+  const defaults = {}; for (const id of ids){ const el = $(id); defaults[id] = el.type === 'checkbox' ? el.checked : el.value; }
+
+  function applyPrefs(p){ for (const id of ids) if (id in p){ const el = $(id); if (el.type === 'checkbox') el.checked = !!p[id]; else el.value = p[id]; } }
+  function loadPrefs(){ try { applyPrefs(JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {} }
+  function savePrefs(){
+    try { const p = {}; for (const id of ids){ const el = $(id); p[id] = el.type === 'checkbox' ? el.checked : el.value; }
+      localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {}
+  }
+  const num = (id, d, lo, hi) => { const v = parseFloat($(id).value); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
+  const tr = (n, d=0) => n.toLocaleString('tr-TR', {minimumFractionDigits:d, maximumFractionDigits:d});
+  const autoTop = h => Math.max(3, Math.ceil(1.0/h - 1e-9)), autoBot = h => Math.max(3, Math.ceil(0.6/h - 1e-9));
+
+  function settings(){
+    return {
+      h:parseFloat($('sLayer').value), lw:num('sLw',0.42,0.3,0.8), walls:Math.round(num('sWalls',2,1,12)),
+      topL:Math.round(num('sTop',5,0,30)), botL:Math.round(num('sBot',3,0,30)),
+      infill:num('sInfill',15,0,100)/100, pattern:$('sPattern').value, mode:parseFloat($('sMode').value) || 1,
+      vOut:num('vOut',200,10,500), vIn:num('vIn',300,10,500), vSparse:num('vSparse',270,10,500), vSolid:num('vSolid',250,10,500),
+      vTop:num('vTop',200,10,500), vFirst:num('vFirst',50,5,300), vFirstInf:num('vFirstInf',105,5,300), vTravel:num('vTravel',500,50,1000),
+      aNorm:num('aNorm',6000,500,20000), aOut:num('aOut',5000,500,20000), flow:num('sFlow',21,1,40), minLayer:num('sMinLayer',4,0,60),
+      dens:(Core.MATS[$('sMat').value] || Core.MATS.PLA).dens, copies:Math.round(num('sCopies',1,1,100)),
+      support:$('sSupport').checked, angle:num('sAngle',30,5,80), brim:num('sBrim',0,0,20), prep:$('sPrep').checked, corr:num('sCorr',100,50,200)/100
+    };
+  }
+
+  function fmtTime(sec){
+    const m = Math.max(1, Math.round(sec/60)), h = Math.floor(m/60), r = m % 60;
+    return h ? `${h}<small>sa</small>${r}<small>dk</small>` : `${r}<small>dk</small>`;
+  }
+  function fmtTimeText(sec){ const m = Math.round(sec/60), h = Math.floor(m/60); return h ? `${h} sa ${m%60} dk` : `${m} dk`; }
+
+  // ---------- 3D view ----------
+  const cv = $('view'); let gl = null, prog, buf, gridBuf, gridN = 0, triN = 0;
+  const cam = {th:-0.9, ph:0.5, dist:100, tz:10}; let clipZ = 1e9, stripeH = 0.2;
+  function initGL(){
+    gl = cv.getContext('webgl2', {antialias:true, alpha:true});
+    if (!gl){ cv.hidden = true; return; }
+    const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, `#version 300 es
+      in vec3 p; uniform mat4 mvp; uniform mat4 mv; out vec3 vp; out float wz;
+      void main(){ vp = (mv*vec4(p,1.)).xyz; wz = p.z; gl_Position = mvp*vec4(p,1.); }`));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `#version 300 es
+      precision highp float; in vec3 vp; in float wz; uniform vec4 col; uniform float flat_; uniform float clipZ; uniform float lh; out vec4 o;
+      void main(){ if (flat_ > .5){ o = col; return; }
+        if (wz > clipZ) discard;
+        vec3 n = normalize(cross(dFdx(vp), dFdy(vp)));
+        float l = .38 + .62*abs(dot(n, normalize(vec3(.35,.45,.82))));
+        float u = wz/lh + .5, s = fract(u), e = min(s, 1. - s)*2.;
+        float stripe = mix(1., .74 + .26*smoothstep(0., .5, e), clamp(1. - fwidth(u)*1.6, 0., 1.));
+        o = vec4(col.rgb*l*stripe, 1.); }`));
+    gl.bindAttribLocation(prog, 0, 'p');
+    gl.linkProgram(prog); gl.useProgram(prog);
+    buf = gl.createBuffer(); gridBuf = gl.createBuffer();
+    const g = []; for (let i=-128;i<=128;i+=32){ g.push(i,-128,0, i,128,0, -128,i,0, 128,i,0); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(g), gl.STATIC_DRAW); gridN = g.length/3;
+    gl.enableVertexAttribArray(0);
+    gl.enable(gl.DEPTH_TEST);
+  }
+  function upload(){
+    if (!gl) return;
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, S.pos, gl.STATIC_DRAW); triN = S.pos.length/3;
+    const r = Math.max(15, Math.hypot(S.size[0], S.size[1], S.size[2])/2);
+    cam.dist = r*2.7; cam.tz = S.size[2]/2;
+  }
+  function mul(a, b){ const r = new Float32Array(16);
+    for (let c=0;c<4;c++) for (let rr=0;rr<4;rr++){ let s = 0; for (let k=0;k<4;k++) s += a[k*4+rr]*b[c*4+k]; r[c*4+rr] = s; } return r; }
+  function draw(){
+    if (!gl) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(cv.clientWidth*dpr), h = Math.round(cv.clientHeight*dpr);
+    if (!w || !h) return;
+    if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+    gl.viewport(0, 0, w, h); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const cp = Math.cos(cam.ph), ex = cam.dist*cp*Math.cos(cam.th), ey = cam.dist*cp*Math.sin(cam.th), ez = cam.tz + cam.dist*Math.sin(cam.ph);
+    let fx = -ex, fy = -ey, fz = cam.tz - ez; const fl = Math.hypot(fx,fy,fz); fx/=fl; fy/=fl; fz/=fl;
+    let sx = fy, sy = -fx, sz = 0; const sl = Math.hypot(sx,sy) || 1; sx/=sl; sy/=sl;
+    const ux = sy*fz - sz*fy, uy = sz*fx - sx*fz, uz = sx*fy - sy*fx;
+    const mv = new Float32Array([sx,ux,-fx,0, sy,uy,-fy,0, sz,uz,-fz,0, -(sx*ex+sy*ey+sz*ez), -(ux*ex+uy*ey+uz*ez), (fx*ex+fy*ey+fz*ez), 1]);
+    const near = cam.dist/50, far = cam.dist*20 + 800, t = 1/Math.tan(0.35);
+    const pr = new Float32Array([t/(w/h),0,0,0, 0,t,0,0, 0,0,(far+near)/(near-far),-1, 0,0,2*far*near/(near-far),0]);
+    const U = n => gl.getUniformLocation(prog, n);
+    gl.uniformMatrix4fv(U('mvp'), false, mul(pr, mv)); gl.uniformMatrix4fv(U('mv'), false, mv);
+    gl.uniform1f(U('clipZ'), clipZ); gl.uniform1f(U('lh'), stripeH);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    gl.uniform1f(U('flat_'), 1); gl.uniform4f(U('col'), .5,.56,.53,.55);
+    gl.drawArrays(gl.LINES, 0, gridN);
+    if (triN){
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniform1f(U('flat_'), 0); gl.uniform4f(U('col'), .22,.72,.52,1);
+      gl.drawArrays(gl.TRIANGLES, 0, triN);
+    }
+  }
+  const pts = new Map(); let pinch = 0;
+  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); pinch = 0; });
+  cv.addEventListener('pointermove', e => {
+    const p = pts.get(e.pointerId); if (!p) return;
+    if (pts.size === 1){ cam.th -= (e.clientX-p[0])*0.01; cam.ph = Math.max(-0.2, Math.min(1.5, cam.ph + (e.clientY-p[1])*0.01)); }
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2){ const a = [...pts.values()], d = Math.hypot(a[0][0]-a[1][0], a[0][1]-a[1][1]);
+      if (pinch) cam.dist = Math.max(5, Math.min(5000, cam.dist*pinch/d)); pinch = d; }
+    draw();
+  });
+  const up = e => { pts.delete(e.pointerId); pinch = 0; };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', e => { e.preventDefault(); cam.dist = Math.max(5, Math.min(5000, cam.dist*(e.deltaY > 0 ? 1.1 : 0.9))); draw(); }, {passive:false});
+
+  // ---------- layer preview ----------
+  const COL = {outer:'#f28c28', inner:'#3fbf5f', sparse:'#d2553f', solid:'#8e6bd8', top:'#4aa8e8', sup:'#2bb5a8', brim:'#8a938f', bg:'#161b19'};
+  const pv = $('layerView'), m = pv.getContext('2d');
+  const mk = () => document.createElement('canvas').getContext('2d');
+  const a = mk(), b = mk(), c = mk(), d = mk();
+  function toPath(loops){
+    const p = new Path2D();
+    for (const l of loops){ p.moveTo(l[0], l[1]); for (let i=2;i<l.length;i+=2) p.lineTo(l[i], l[i+1]); p.closePath(); }
+    return p;
+  }
+  let pvQueued = false;
+  function queueLayer(){ if (pvQueued) return; pvQueued = true; requestAnimationFrame(() => { pvQueued = false; drawLayer(); }); }
+
+  function drawLayer(){
+    if (S.noMesh || !S.layers) return;
+    const s = settings(), N = S.layers.N, h = S.layers.h;
+    const k = Math.min(N-1, Math.max(0, (+$('lyr').value) - 1));
+    $('lyrLabel').textContent = `Katman ${k+1} / ${N}, yükseklik ${tr((k+1)*h, 2)} mm`;
+    clipZ = k === N-1 ? 1e9 : (k+1)*h + 1e-4; stripeH = h; draw();
+    const dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.round(pv.clientWidth*dpr);
+    if (!W) return;
+    for (const x of [m, a, b, c, d]) if (x.canvas.width !== W){ x.canvas.width = W; x.canvas.height = W; }
+    const ka = Math.max(0, k - Math.max(1, s.botL)), kb = Math.min(N-1, k + Math.max(1, s.topL));
+    const paths = Core.sliceSegs(S.pos, h, N, ka, kb).map(sg => toPath(Core.chain(sg)));
+    const P = j => paths[j-ka];
+    const margin = 4 + s.brim + (s.support ? 4 : 0);
+    const ext = Math.max(S.size[0], S.size[1]) + 2*margin, sc = W/ext, px = 1/sc, R = ext;
+    const T = x => x.setTransform(sc, 0, 0, -sc, W/2, W/2), I = x => x.setTransform(1, 0, 0, 1, 0, 0);
+    const clear = x => { I(x); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, W, W); };
+    const fillMask = (x, p) => { clear(x); T(x); x.fillStyle = '#fff'; x.fill(p, 'evenodd'); };
+    const comp = (dst, src, op) => { I(dst); dst.globalCompositeOperation = op; dst.drawImage(src.canvas, 0, 0); dst.globalCompositeOperation = 'source-over'; };
+    const paint = (mask, fn) => { clear(c); T(c); fn(c); comp(c, mask, 'destination-in'); comp(m, c, 'source-over'); };
+    const flat = (x, col) => { x.fillStyle = col; x.globalAlpha = 0.92; x.fillRect(-R, -R, 2*R, 2*R); x.globalAlpha = 1; };
+    function hatch(x, ang, sp, w, col, off){
+      const n = Math.ceil(2*R/sp); if (n > 1400 || sp*sc < 1.8) return flat(x, col);
+      const ca = Math.cos(ang), sa = Math.sin(ang), o0 = -R + ((((off || 0) % sp) + sp) % sp);
+      x.beginPath();
+      for (let i=0;i<=n;i++){ const o = o0 + i*sp; x.moveTo(-R*ca - o*sa, -R*sa + o*ca); x.lineTo(R*ca - o*sa, R*sa + o*ca); }
+      x.strokeStyle = col; x.lineWidth = Math.max(w, px); x.stroke();
+    }
+    const q = Math.PI/4, alt = k % 2 ? q : 3*q, li = s.lw*1.07, z = (k+0.5)*h;
+    const solidPat = col => x => hatch(x, alt, s.lw, s.lw*0.82, col);
+    function sparsePat(x){
+      const rho = Math.max(s.infill, 0.02), col = COL.sparse, w = li*0.9;
+      if (s.infill >= 0.99) return hatch(x, alt, li, w, col);
+      if (s.pattern === 'lines') return hatch(x, alt, li/rho, w, col);
+      if (s.pattern === 'grid'){ hatch(x, q, 2*li/rho, w, col); return hatch(x, 3*q, 2*li/rho, w, col); }
+      if (s.pattern === 'triangles' || s.pattern === 'cubic'){
+        const sp = 3*li/rho, off = s.pattern === 'cubic' ? z*0.7 : 0;
+        for (let i=0;i<3;i++) hatch(x, i*Math.PI/3, sp, w, col, off*(i === 1 ? -1 : 1));
+        return;
+      }
+      if (s.pattern === 'honeycomb'){
+        const e = Math.max(1.5*li/rho, li*1.5), dx = Math.sqrt(3)*e, dy = 1.5*e, nx = Math.ceil(R/dx), ny = Math.ceil(R/dy);
+        if (nx*ny*4 > 30000 || e*sc < 2) return flat(x, col);
+        x.beginPath();
+        for (let j=-ny;j<=ny;j++) for (let i=-nx;i<=nx;i++){
+          const cx = dx*(i + (j & 1)/2), cy = dy*j;
+          for (let v=0;v<4;v++){ const an = Math.PI/6 + v*Math.PI/3, X = cx + e*Math.cos(an), Y = cy + e*Math.sin(an); if (v) x.lineTo(X, Y); else x.moveTo(X, Y); }
+        }
+        x.strokeStyle = col; x.lineWidth = Math.max(w, px); x.stroke(); return;
+      }
+      // gyroid: wavy lines whose direction and depth of wave change with height
+      const sp = Math.max(1.3*li/rho, li*1.3), ph = Math.PI*z/sp, horiz = Math.abs(Math.cos(ph)) >= Math.abs(Math.sin(ph));
+      const amp = sp*(0.15 + 0.3*Math.abs(Math.sin(2*ph))), lam = 2*sp, step = lam/8, n = Math.ceil(2*R/sp), np = Math.ceil(2*R/step);
+      if (n*np > 60000 || sp*sc < 2) return flat(x, col);
+      const ca = Math.cos(q), sa = Math.sin(q);
+      x.beginPath();
+      for (let i=0;i<=n;i++){ const o = -R + i*sp;
+        for (let t=0;t<=np;t++){ const u = -R + t*step, v = o + amp*Math.sin(2*Math.PI*u/lam + (i % 2 ? Math.PI : 0));
+          const X0 = horiz ? u : v, Y0 = horiz ? v : u, X = X0*ca - Y0*sa, Y = X0*sa + Y0*ca;
+          if (t) x.lineTo(X, Y); else x.moveTo(X, Y); } }
+      x.strokeStyle = col; x.lineWidth = Math.max(w, px); x.stroke();
+    }
+
+    // region that has model in every layer above and below within the shell count: sparse infill goes here
+    fillMask(a, P(k)); let allSolid = false;
+    for (let j=1;j<=s.topL && !allSolid;j++){ if (k+j > N-1) allSolid = true; else { fillMask(b, P(k+j)); comp(a, b, 'destination-in'); } }
+    for (let j=1;j<=s.botL && !allSolid;j++){ if (k-j < 0) allSolid = true; else { fillMask(b, P(k-j)); comp(a, b, 'destination-in'); } }
+    if (allSolid) clear(a);
+
+    clear(m);
+    if (k === 0 && s.brim > 0){ T(m); m.lineJoin = 'round'; m.strokeStyle = COL.brim; m.lineWidth = 2*s.brim; m.stroke(P(0)); I(m); }
+    if (s.support && S.st.ovTris.length){
+      const o = S.st.ovTris, zt = (k+1)*h; clear(b); T(b); b.fillStyle = '#fff'; b.beginPath(); let any = false;
+      for (let i=0;i<o.length && o[i+6] > zt;i+=7){ b.moveTo(o[i], o[i+1]); b.lineTo(o[i+2], o[i+3]); b.lineTo(o[i+4], o[i+5]); b.closePath(); any = true; }
+      if (any){
+        b.fill('nonzero');
+        fillMask(d, P(k)); d.lineJoin = 'round'; d.strokeStyle = '#fff'; d.lineWidth = 1.0; d.stroke(P(k));
+        comp(b, d, 'destination-out');
+        paint(b, x => hatch(x, k % 2 ? 0 : Math.PI/2, 2.5, s.lw, COL.sup));
+      }
+    }
+    const edge = k === 0 || k === N-1;
+    fillMask(b, P(k)); comp(m, b, 'destination-out');
+    paint(b, solidPat(edge ? COL.top : COL.solid));
+    if (!edge){
+      if (s.topL > 0){ fillMask(b, P(k)); fillMask(d, P(k+1)); comp(b, d, 'destination-out'); comp(m, b, 'destination-out'); paint(b, solidPat(COL.top)); }
+      if (s.botL > 0){ fillMask(b, P(k)); fillMask(d, P(k-1)); comp(b, d, 'destination-out'); comp(m, b, 'destination-out'); paint(b, solidPat(COL.top)); }
+      comp(m, a, 'destination-out');
+      if (s.infill > 0) paint(a, sparsePat);
+    }
+    fillMask(b, P(k));
+    paint(b, x => {
+      x.lineJoin = 'round'; const sep = s.lw*sc >= 2.5;
+      for (let w=s.walls;w>=1;w--){
+        if (sep){ x.strokeStyle = COL.bg; x.lineWidth = 2*w*s.lw; x.stroke(P(k)); }
+        x.strokeStyle = w === 1 ? COL.outer : COL.inner; x.lineWidth = Math.max(px, 2*w*s.lw - (sep ? 1.4*px : 0)); x.stroke(P(k));
+      }
+    });
+  }
+
+  // ---------- model + results ----------
+  function setModel(pos){ S.pos = pos; S.scale = 1; $('sScale').value = 100; geometryChanged(true); }
+  function geometryChanged(resetLayer){
+    S.size = Core.settle(S.pos); S.st = null; S.layers = null;
+    upload(); recalc(resetLayer);
+  }
+  function recalc(resetLayer){
+    if (S.noMesh || !S.pos) return;
+    const s = settings(), cosT = Math.cos(s.angle*Math.PI/180);
+    if (!S.st || S.stCos !== cosT){ S.st = Core.stats(S.pos, cosT); S.stCos = cosT; }
+    if (!S.layers || S.layers.h !== s.h){
+      const old = S.layers, frac = old && !resetLayer ? (+$('lyr').value)/old.N : 0.5;
+      S.layers = Core.slice(S.pos, s.h, S.size[2]);
+      $('lyr').max = S.layers.N; $('lyr').value = Math.max(1, Math.min(S.layers.N, Math.round(frac*S.layers.N)));
+    }
+    const r = Core.estimate(S.layers, S.st, s);
+    $('timeLabel').textContent = s.copies > 1 ? `Tahmini süre (${s.copies} adet)` : 'Tahmini süre';
+    $('time').innerHTML = fmtTime(r.total);
+    $('grams').textContent = tr(r.grams, r.grams < 100 ? 1 : 0);
+    $('meters').textContent = tr(r.meters, 1);
+    const price = parseFloat($('sPrice').value);
+    $('cost').textContent = price > 0 ? tr(r.grams/1000*price, 2) : '–';
+    const names = [['walls','Duvarlar','var(--accent)'],['solid','Dolu katmanlar','var(--seg2)'],['infill','Dolgu','var(--seg3)'],['support','Destek','var(--seg4)'],['other','Hazırlık, geçiş, soğuma','var(--seg5)']];
+    $('bar').innerHTML = names.map(n => `<i style="width:${(r.parts[n[0]]/r.total*100).toFixed(2)}%;background:${n[2]}"></i>`).join('');
+    $('legend').innerHTML = names.filter(n => r.parts[n[0]] > 0.5).map(n => `<span style="--c:${n[2]}">${n[1]} ${fmtTimeText(r.parts[n[0]])}</span>`).join('');
+    $('breakdown').hidden = false;
+    $('fSize').textContent = `${tr(S.size[0],1)} × ${tr(S.size[1],1)} × ${tr(S.size[2],1)} mm`;
+    $('fVol').textContent = `${tr(S.st.vol/1000, 1)} cm³`;
+    $('fLayers').textContent = `${tr(r.layers)} katman`;
+    $('fTris').textContent = tr(S.pos.length/9);
+    const w = [];
+    if (S.size[0] > 256 || S.size[1] > 256 || S.size[2] > 256) w.push('Model A1 tablasına (256 × 256 × 256 mm) sığmıyor. Ölçeği küçült ya da modeli çevir.');
+    if (Math.max(...S.size) < 2) w.push('Model çok küçük görünüyor. Dosya inç ya da metre ile kaydedilmiş olabilir, ölçeği artırmayı dene (inç için 2540).');
+    if (S.st.ovA > 25 && !s.support) w.push(`Yaklaşık ${tr(S.st.ovA/100, 1)} cm² askıda yüzey var. Destek gerekebilir; "Destek ve kenarlık" bölümünden desteği açarak süreye etkisini gör ya da modeli çevir.`);
+    $('warn').hidden = !w.length; $('warn').innerHTML = w.join('<br>');
+    savePrefs(); queueLayer();
+  }
+  function showSliced(){
+    const el = $('sliced');
+    if (!S.sliced){ el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = `Bu dosya zaten dilimlenmiş. Dilimleyicinin hesabı: <b>${fmtTimeText(S.sliced.time)}</b>` + (S.sliced.grams ? `, ${tr(S.sliced.grams, 1)} g filament` : '') + '. Dosyadaki ayarlar ve yazıcı seninkinden farklı olabilir.';
+  }
+  function showNoMesh(){
+    $('time').innerHTML = fmtTime(S.sliced.time); $('timeLabel').textContent = 'Dilimleyicinin süresi';
+    $('grams').textContent = S.sliced.grams ? tr(S.sliced.grams, 1) : '–'; $('meters').textContent = '–'; $('cost').textContent = '–';
+    $('breakdown').hidden = true; $('warn').hidden = true;
+  }
+  function fail(msg){ $('error').hidden = false; $('error').textContent = msg; }
+
+  async function openFile(file){
+    $('error').hidden = true;
+    const name = file.name.toLowerCase();
+    try {
+      if (/\.(step|stp|iges|igs|f3d|blend|fbx)$/.test(name)) return fail('Bu dosya türü burada açılamıyor. Gönderen kişiden STL ya da 3MF olarak dışa aktarmasını iste.');
+      const buf = await file.arrayBuffer(); let pos = null, sliced = null;
+      if (name.endsWith('.3mf')){ const r = await Core.parse3MF(buf); pos = r.pos; sliced = r.sliced; }
+      else if (name.endsWith('.obj')) pos = Core.parseOBJ(buf);
+      else if (name.endsWith('.gcode')) sliced = Core.parseGcodeHeader(buf);
+      else pos = Core.parseSTL(buf);
+      const has = pos && pos.length >= 9;
+      if (!has && !sliced) return fail('Dosyada 3B model bulunamadı. Dosya bozuk olabilir ya da desteklenmeyen bir türde.');
+      $('fileName').textContent = file.name;
+      S.sliced = sliced; S.noMesh = !has; showSliced();
+      $('modelPanel').hidden = !has; $('layerPanel').hidden = !has;
+      if (has) setModel(pos); else showNoMesh();
+    } catch (e) {
+      fail('Dosya okunamadı. Dosya bozuk olabilir ya da telefonun bu boyutta bir dosya için yeterli belleği yok.');
+    }
+  }
+
+  $('pickBtn').addEventListener('click', () => $('file').click());
+  $('file').addEventListener('change', e => { const f = e.target.files[0]; if (f) openFile(f); e.target.value = ''; });
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) openFile(f); });
+  function rotate(axis){
+    if (!S.pos) return; const p = S.pos;
+    for (let i=0;i<p.length;i+=3){ const x=p[i], z=p[i+2];
+      if (axis === 'x'){ p[i+2] = p[i+1]; p[i+1] = -z; } else { p[i] = z; p[i+2] = -x; } }
+    geometryChanged(true);
+  }
+  $('rotX').addEventListener('click', () => rotate('x'));
+  $('rotY').addEventListener('click', () => rotate('y'));
+  $('sScale').addEventListener('change', () => {
+    if (!S.pos) return; const ns = num('sScale',100,1,10000)/100, k = ns/S.scale; if (k === 1) return;
+    for (let i=0;i<S.pos.length;i++) S.pos[i] *= k; S.scale = ns; geometryChanged(false);
+  });
+
+  function setShells(){ const h = parseFloat($('sLayer').value); $('sTop').value = autoTop(h); $('sBot').value = autoBot(h); }
+  function setMaterial(){ const mt = Core.MATS[$('sMat').value]; if (mt){ $('sFlow').value = mt.flow; $('sMinLayer').value = mt.minLayer; } }
+  $('sPreset').addEventListener('change', () => {
+    const v = $('sPreset').value; if (!v) return;
+    const keep = {sPreset:v, sMat:$('sMat').value, sFlow:$('sFlow').value, sMinLayer:$('sMinLayer').value, sPrice:$('sPrice').value, sCorr:$('sCorr').value, sCopies:$('sCopies').value, sPrep:$('sPrep').checked, sSupport:$('sSupport').checked, sAngle:$('sAngle').value, sBrim:$('sBrim').value};
+    applyPrefs(Object.assign({}, defaults, keep));
+    $('sLayer').value = parseFloat(v); setShells();
+    if (v === '0.2s'){ $('sWalls').value = 6; $('sInfill').value = 25; }
+    $('infillVal').textContent = $('sInfill').value; recalc();
+  });
+  $('sLayer').addEventListener('change', setShells);
+  $('sMat').addEventListener('change', setMaterial);
+  $('resetBtn').addEventListener('click', () => { applyPrefs(defaults); $('infillVal').textContent = $('sInfill').value; recalc(); });
+  $('sInfill').addEventListener('input', () => { $('infillVal').textContent = $('sInfill').value; });
+  for (const id of ids){
+    if (id === 'sPreset') continue;
+    $(id).addEventListener(id === 'sInfill' ? 'input' : 'change', () => {
+      if (!['sMat','sPrice','sCorr','sCopies','sPrep','sSupport','sAngle','sBrim','sMode','sFlow','sMinLayer'].includes(id)) $('sPreset').value = '';
+      recalc();
+    });
+  }
+  $('lyr').addEventListener('input', queueLayer);
+  const stepLayer = dlt => { const el = $('lyr'); el.value = Math.max(1, Math.min(+el.max, +el.value + dlt)); queueLayer(); };
+  $('lyrDown').addEventListener('click', () => stepLayer(-1));
+  $('lyrUp').addEventListener('click', () => stepLayer(1));
+  window.addEventListener('resize', () => { draw(); queueLayer(); });
+
+  loadPrefs(); $('infillVal').textContent = $('sInfill').value;
+  initGL();
+  setModel(Core.cube(20));
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
