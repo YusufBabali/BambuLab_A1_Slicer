@@ -3,231 +3,337 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>A1 Baskı Süresi</title>
+<title>Baskı Süresi</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="A1 Süre">
-<meta name="theme-color" content="#121715">
+<meta name="apple-mobile-web-app-title" content="Baskı Süresi">
+<meta name="theme-color" content="#ecf1ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1210" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* Layout idea: one phone-width column. Result first (time), then model and layer preview, then settings in folding groups. */
+/* Layout: phone = one column (machine, result, model, settings). Wide screens = model on the left, result and settings on the right. */
 :root{
-  --bg:#f2f5f3; --surface:#ffffff; --ink:#15201b; --muted:#5b6a63; --line:#d8dfdb;
-  --accent:#0b7f52; --accent-ink:#ffffff; --warn:#a85a00; --warn-bg:#fff3df;
+  --bg:#ecf1ee; --surface:#ffffff; --surface-2:#f4f7f5; --ink:#13201a; --muted:#5a6962; --line:#dbe3de;
+  --accent:#0a7d50; --accent-soft:#e1f2e8; --accent-ink:#ffffff; --warn:#9a5200; --warn-bg:#fff1d9; --danger:#b3261e;
   --seg2:#5aa98a; --seg3:#9fcdb9; --seg4:#c9a35a; --seg5:#b9c3be;
+  --stage:#f2f6f3; --shadow:0 1px 2px rgba(19,32,26,.05), 0 8px 28px rgba(19,32,26,.07);
   --display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
   --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#121715; --surface:#1b2320; --ink:#e7eeea; --muted:#93a39b; --line:#2c3732;
-    --accent:#45c48d; --accent-ink:#0c1512; --warn:#f0b35a; --warn-bg:#33270f;
+    --bg:#0d1210; --surface:#151c19; --surface-2:#1b2420; --ink:#e4ede8; --muted:#8e9e96; --line:#24302b;
+    --accent:#45c48d; --accent-soft:#15322a; --accent-ink:#06120c; --warn:#f0b35a; --warn-bg:#30240e; --danger:#ff8a80;
     --seg2:#2f8f68; --seg3:#1f5f47; --seg4:#b58a3c; --seg5:#46524c;
+    --stage:#101714; --shadow:none;
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#121715; --surface:#1b2320; --ink:#e7eeea; --muted:#93a39b; --line:#2c3732;
-  --accent:#45c48d; --accent-ink:#0c1512; --warn:#f0b35a; --warn-bg:#33270f;
+  --bg:#0d1210; --surface:#151c19; --surface-2:#1b2420; --ink:#e4ede8; --muted:#8e9e96; --line:#24302b;
+  --accent:#45c48d; --accent-soft:#15322a; --accent-ink:#06120c; --warn:#f0b35a; --warn-bg:#30240e; --danger:#ff8a80;
   --seg2:#2f8f68; --seg3:#1f5f47; --seg4:#b58a3c; --seg5:#46524c;
+  --stage:#101714; --shadow:none;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
-main{max-width:560px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:16px}
-h1{font-family:var(--display);font-weight:600;font-size:28px;line-height:1.1;margin:0;text-wrap:balance}
-h2{font-family:var(--display);font-weight:600;font-size:18px;margin:0;letter-spacing:.01em}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+h1,h2{font-family:var(--display);font-weight:600;margin:0;text-wrap:balance}
+h1{font-size:26px;line-height:1.05;letter-spacing:.005em}
+h2{font-size:19px;letter-spacing:.01em}
 p{margin:0}
-.sub{color:var(--muted);font-size:14px;margin-top:4px}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
-.btn{font:600 16px var(--body);border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;cursor:pointer;min-height:44px}
-.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);width:100%;padding:14px}
-.btn:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.file{font-size:14px;color:var(--muted);overflow-wrap:anywhere}
-.time{font-family:var(--display);font-weight:600;font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
-.time small{font-size:24px;font-weight:500;color:var(--muted);margin:0 8px 0 2px}
-.label{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.tile{border:1px solid var(--line);border-radius:8px;padding:10px}
-.tile b{display:block;font-family:var(--display);font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;line-height:1.2}
-.tile span{font-size:12px;color:var(--muted)}
-.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line)}
-.bar i{display:block;height:100%}
-.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}
-.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
-.note{font-size:13px;color:var(--muted)}
-.alert{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:14px}
-.sliced{border:1px solid var(--accent);border-radius:8px;padding:10px 12px;font-size:14px}
-.sliced b{font-family:var(--display);font-size:20px}
-canvas{display:block;width:100%;border-radius:8px}
-#view{height:260px;background:var(--bg);touch-action:none}
-#layerView{aspect-ratio:1/1;background:#161b19}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.row .btn{flex:1 1 auto;font-size:14px;font-weight:500;padding:8px 10px}
-.ptab{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;margin-top:6px}
-.ptab td{padding:4px 0;border-top:1px solid var(--line)}
-.ptab td:not(:first-child){text-align:right}
-.ptab tr.tot td{font-weight:600}
-.partlist{display:flex;flex-wrap:wrap;gap:6px}
-.partlist button{font:500 14px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 10px;min-height:40px;cursor:pointer;text-align:left}
-.partlist button[aria-pressed="true"]{background:var(--seg4);border-color:var(--seg4);color:#111}
-.parts{display:flex;flex-direction:column;gap:8px}
-.parts .row .btn{flex:1 1 0;font-size:15px}
-.btn:disabled{opacity:.45;cursor:default}
-.seg{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.seg button{font:500 15px var(--body);border:0;background:var(--surface);color:var(--muted);min-height:44px;cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
-.stepper{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center}
-.stepper .btn{padding:0;font-size:22px;line-height:1}
-.facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px;margin:0}
-.facts dt{color:var(--muted)}
-.facts dd{margin:0;font-variant-numeric:tabular-nums}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.field{display:flex;flex-direction:column;gap:4px;min-width:0;justify-content:flex-end}
-.field label{font-size:13px;color:var(--muted)}
-select,input[type=number]{font:16px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-height:44px;width:100%}
-input[type=range]{width:100%;accent-color:var(--accent);min-height:44px;margin:0}
-.check{display:flex;gap:10px;align-items:center;font-size:15px;min-height:44px}
-.check input{width:20px;height:20px;accent-color:var(--accent);flex:none}
-.wide{grid-column:1/-1}
-details{border-top:1px solid var(--line)}
-details:first-of-type{border-top:0}
-summary{font-family:var(--display);font-weight:600;font-size:17px;padding:12px 0;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;min-height:44px}
-summary::-webkit-details-marker{display:none}
-summary::after{content:"+";font-size:22px;color:var(--muted);font-weight:500}
-details[open] summary::after{content:"–"}
-details .grid{padding-bottom:16px}
-.settings{gap:0}
-.settings h2{margin-bottom:12px}
-.calrow{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:14px;border-top:1px solid var(--line);padding:6px 0}
-.calrow button{min-width:44px;min-height:44px;font-size:18px}
 [hidden]{display:none!important}
-@media (max-width:360px){.tiles{grid-template-columns:1fr 1fr}.time{font-size:46px}}
+
+.app{max-width:560px;margin:0 auto;padding:16px 16px 40px;display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px;min-width:0}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 24px;padding:4px 2px 2px}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:36px;height:36px;flex:none}
+.sub{color:var(--muted);font-size:13px;margin-top:3px}
+.machine{display:flex;flex-direction:column;gap:6px;flex:1 1 280px;max-width:380px}
+.eyebrow{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+/* controls */
+.btn{font:600 15px var(--body);border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 14px;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover:not(:disabled){border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{background:var(--surface-2)}
+.btn:disabled{opacity:.42;cursor:default}
+.btn svg{width:18px;height:18px;flex:none}
+:is(.btn,.tool,select,input,summary,.seg button,.partlist button):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg button{font:500 14px var(--body);border:0;border-radius:9px;background:transparent;color:var(--muted);min-height:38px;padding:6px 10px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08),0 0 0 1px var(--line)}
+.machine .seg button{min-height:42px;font-size:15px}
+.machine .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);box-shadow:none}
+select,input[type=number]{font:16px var(--body);color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:9px 10px;min-height:44px;width:100%}
+input[type=range]{width:100%;accent-color:var(--accent);min-height:36px;margin:0}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0;justify-content:flex-end}
+.field label{font-size:13px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.wide{grid-column:1/-1}
+.check{display:flex;gap:10px;align-items:center;font-size:15px;min-height:40px;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin:0}
+.switch{display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer;font-size:15px;position:relative}
+.switch input{position:absolute;opacity:0;width:44px;height:26px;margin:0;cursor:pointer}
+.switch .track{width:44px;height:26px;border-radius:13px;background:var(--line);position:relative;flex:none;transition:background .15s}
+.switch .track::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s}
+.switch input:checked + .track{background:var(--accent)}
+.switch input:checked + .track::after{transform:translateX(18px)}
+.switch input:focus-visible + .track{outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:13px;color:var(--muted)}
+.alert{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 12px;font-size:14px}
+
+/* result card */
+.filebar{display:flex;align-items:center;gap:12px}
+.filebar .btn{flex:none;padding-inline:16px}
+.fileinfo{min-width:0;flex:1}
+.file{font-size:14px;font-weight:500;overflow-wrap:anywhere;line-height:1.3}
+.plates{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;padding:12px;border-radius:12px;background:var(--surface-2)}
+.result{display:flex;flex-direction:column;gap:2px;padding-top:2px;border-top:1px solid var(--line);padding-top:14px}
+.label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.time{font-family:var(--display);font-weight:600;font-size:64px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em;margin:4px 0 2px}
+.time small{font-size:26px;font-weight:500;color:var(--muted);margin:0 10px 0 3px}
+.cal{color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stats div{padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.stats div + div{border-left:1px solid var(--line)}
+.stats b{font-family:var(--display);font-weight:600;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stats span{font-size:12px;color:var(--muted)}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line);gap:2px}
+.bar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center}
+.legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;background:var(--c);flex:none}
+.sliced{border:1px solid var(--accent);background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:14px}
+.sliced b{font-family:var(--display);font-size:20px}
+.ptab{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+.ptab td{padding:6px 0;border-top:1px solid var(--line)}
+.ptab td:not(:first-child){text-align:right;padding-left:12px}
+.ptab tr.tot td{font-weight:600;color:var(--ink)}
+
+/* model card */
+.stage{position:relative;border-radius:12px;overflow:hidden;background:var(--stage);border:1px solid var(--line)}
+canvas{display:block;width:100%}
+#view{height:320px;touch-action:none;cursor:grab}
+#view:active{cursor:grabbing}
+.stage-seg{position:absolute;top:10px;left:10px;width:auto;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(6px)}
+.stage-seg button{min-height:34px;padding:4px 12px;font-size:13px}
+.stage-dims{position:absolute;left:12px;bottom:10px;right:12px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;pointer-events:none;text-shadow:0 0 6px var(--stage)}
+.fil span::before{border-radius:50%;width:10px;height:10px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.layerbar{display:flex;flex-direction:column;gap:6px}
+.stepper{display:grid;grid-template-columns:44px 1fr 44px;gap:10px;align-items:center}
+.stepper .btn{padding:0;font-size:22px;line-height:1}
+.slice-extra{display:flex;flex-direction:column;align-items:center;gap:6px}
+#layerView{max-width:440px;aspect-ratio:1/1;background:#161b19;border-radius:12px}
+.parts{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:14px}
+.parts-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.partlist{display:flex;flex-wrap:wrap;gap:6px}
+.partlist button{font:500 13px var(--body);border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:9px;padding:7px 10px;min-height:38px;cursor:pointer;text-align:left}
+.partlist button[aria-pressed="true"]{background:var(--seg4);border-color:var(--seg4);color:#111}
+.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:62px;padding:8px 4px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:500 12.5px var(--body);cursor:pointer}
+.tool svg{width:22px;height:22px}
+.tool:hover:not(:disabled){border-color:var(--muted)}
+.tool.on{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.tool.on svg{color:var(--accent)}
+.tool.danger svg{color:var(--danger)}
+.tool:disabled{opacity:.4;cursor:default}
+.toolpanel{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)}
+.toolpanel .btn{flex:1 1 0}
+.pad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,44px);gap:6px}
+.pad .btn{padding:0;min-height:44px;font-size:18px}
+.cut:not([open]){display:none}
+.cut > summary{display:none}
+.cut .grid{width:100%}
+
+/* settings */
+.basic{padding-bottom:4px}
+.acc{border-top:1px solid var(--line)}
+.acc > summary{display:flex;align-items:center;gap:12px;padding:14px 2px;cursor:pointer;list-style:none;min-height:52px}
+.acc > summary::-webkit-details-marker{display:none}
+.acc > summary .t{font-family:var(--display);font-weight:600;font-size:17px;flex:none}
+.acc > summary .v{flex:1;min-width:0;text-align:right;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc > summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);flex:none;margin:0 4px 0 2px;transition:transform .15s}
+.acc[open] > summary::after{transform:rotate(225deg) translateY(-2px)}
+.acc > .grid{padding:2px 2px 18px}
+.calrow{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:13.5px;border-top:1px solid var(--line);padding:6px 0}
+.calrow button{min-width:44px;min-height:40px;font-size:18px}
+.foot{font-size:12px;color:var(--muted);text-align:center;padding:4px 12px;text-wrap:balance}
+
+@media (min-width:980px){
+  .app{max-width:1200px;padding:28px 28px 48px;gap:18px;grid-template-columns:minmax(0,1.25fr) minmax(380px,1fr);grid-template-areas:"top top" "view hero" "view set" "foot foot";align-items:start}
+  .top{grid-area:top} .c-hero{grid-area:hero} .c-view{grid-area:view} .c-set{grid-area:set} .foot{grid-area:foot}
+  #view{height:480px}
+}
+@media (max-width:380px){
+  .time{font-size:52px} .stats b{font-size:21px} .filebar{flex-wrap:wrap}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <h1>A1 Baskı Süresi</h1>
-    <p class="sub">Bambu Lab A1 · 0,4 mm nozul · dosya telefonundan çıkmaz</p>
+<main class="app">
+  <header class="top">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 36 36" aria-hidden="true">
+        <rect x="4" y="24" width="28" height="7" rx="2.5" fill="var(--accent)"/>
+        <rect x="8" y="15.5" width="20" height="7" rx="2.5" fill="var(--accent)" opacity=".7"/>
+        <rect x="12" y="7" width="12" height="7" rx="2.5" fill="var(--accent)" opacity=".45"/>
+      </svg>
+      <div>
+        <h1>Baskı Süresi</h1>
+        <p class="sub">Dosyan cihazından çıkmaz, hesap burada yapılır.</p>
+      </div>
+    </div>
+    <div class="machine">
+      <span class="eyebrow" id="machineLabel">Makineniz</span>
+      <div class="seg" id="machineSeg" role="group" aria-labelledby="machineLabel">
+        <button type="button" data-p="a1" aria-pressed="true">Bambu Lab A1</button>
+        <button type="button" data-p="u1" aria-pressed="false">Snapmaker U1</button>
+      </div>
+      <select id="sPrinter" hidden aria-hidden="true"><option value="a1" selected>Bambu Lab A1</option><option value="u1">Snapmaker U1</option></select>
+    </div>
   </header>
 
-  <section class="panel">
-    <input type="file" id="file" hidden>
-    <button class="btn primary" id="pickBtn" type="button">Dosya seç (STL, 3MF, OBJ)</button>
-    <div class="file" id="fileName">Örnek model: 20 mm küp</div>
-    <div id="plateBox" hidden>
-      <div class="row">
-        <div class="field" style="flex:1 1 auto"><label for="plateSel">Tabla</label><select id="plateSel"></select></div>
-        <button class="btn" id="plateAll" type="button" style="align-self:flex-end">Tüm tablaları hesapla</button>
+  <section class="card c-hero" aria-live="polite">
+    <div class="filebar">
+      <input type="file" id="file" hidden>
+      <button class="btn primary" id="pickBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+        Dosya seç
+      </button>
+      <div class="fileinfo">
+        <div class="file" id="fileName">Örnek model: 20 mm küp</div>
+        <div class="note">STL, 3MF veya OBJ</div>
       </div>
-      <div id="plateTable" class="note"></div>
     </div>
-    <select id="sPrinter" hidden aria-hidden="true"><option value="a1" selected>Bambu Lab A1</option></select>
+    <div id="plateBox" class="plates" hidden>
+      <div class="field"><label for="plateSel">Tabla</label><select id="plateSel"></select></div>
+      <button class="btn" id="plateAll" type="button">Tümünü hesapla</button>
+      <div id="plateTable" class="note wide" style="grid-column:1/-1"></div>
+    </div>
     <div class="alert" id="error" hidden></div>
-  </section>
-
-  <section class="panel" aria-live="polite">
-    <div>
+    <div class="result">
       <div class="label" id="timeLabel">Tahmini toplam süre</div>
       <div class="time" id="time">–</div>
       <div class="note" id="timeSplit"></div>
-      <div class="note" id="calNote"></div>
+      <div class="note cal" id="calNote"></div>
     </div>
     <div class="sliced" id="sliced" hidden></div>
-    <div class="tiles">
-      <div class="tile"><b id="grams">–</b><span>filament (g)</span></div>
-      <div class="tile"><b id="meters">–</b><span>filament (m)</span></div>
-      <div class="tile"><b id="cost">–</b><span>maliyet (₺)</span></div>
+    <div class="stats">
+      <div><b id="grams">–</b><span>filament, g</span></div>
+      <div><b id="meters">–</b><span>uzunluk, m</span></div>
+      <div><b id="cost">–</b><span>maliyet, ₺</span></div>
     </div>
     <div id="breakdown">
       <div class="bar" id="bar"></div>
-      <div class="legend" id="legend" style="margin-top:8px"></div>
+      <div class="legend" id="legend"></div>
     </div>
     <div class="note" id="gramSplit"></div>
     <div class="alert" id="warn" hidden></div>
   </section>
 
-  <section class="panel" id="modelPanel">
-    <div class="seg" role="group" aria-label="Görünüm">
-      <button type="button" id="viewModel" aria-pressed="true">Model</button>
-      <button type="button" id="viewSliced" aria-pressed="false">Dilimlenmiş</button>
+  <section class="card c-view" id="modelPanel">
+    <div class="stage">
+      <canvas id="view" aria-label="Modelin 3B görünümü. Sürükleyerek döndür, iki parmakla yakınlaştır."></canvas>
+      <div class="seg stage-seg" role="group" aria-label="Görünüm">
+        <button type="button" id="viewModel" aria-pressed="true">Model</button>
+        <button type="button" id="viewSliced" aria-pressed="false">Dilimlenmiş</button>
+      </div>
+      <div class="stage-dims"><span id="fSize">–</span> · <span id="fVol">–</span> · <span id="fLayers">–</span><span id="fTris" hidden></span></div>
     </div>
-    <canvas id="view" aria-label="Modelin 3B görünümü. Sürükleyerek döndür, iki parmakla yakınlaştır."></canvas>
-    <div class="legend" id="filList" hidden></div>
-    <p class="note"><span id="fSize">–</span> · <span id="fVol">–</span> · <span id="fLayers">–</span><span id="fTris" hidden></span></p>
-    <div class="note" id="lyrLabel">Katman –</div>
-    <div class="stepper">
-      <button class="btn" id="lyrDown" type="button" aria-label="Bir katman aşağı">−</button>
-      <input type="range" id="lyr" min="1" max="100" step="1" value="50" aria-label="Katman">
-      <button class="btn" id="lyrUp" type="button" aria-label="Bir katman yukarı">+</button>
+    <div class="legend fil" id="filList" hidden></div>
+    <div class="layerbar">
+      <div class="note" id="lyrLabel">Katman –</div>
+      <div class="stepper">
+        <button class="btn" id="lyrDown" type="button" aria-label="Bir katman aşağı">−</button>
+        <input type="range" id="lyr" min="1" max="100" step="1" value="50" aria-label="Katman">
+        <button class="btn" id="lyrUp" type="button" aria-label="Bir katman yukarı">+</button>
+      </div>
+    </div>
+    <div id="sliceExtra" class="slice-extra" hidden>
+      <canvas id="layerView" aria-label="Seçili katmanın üstten görünümü"></canvas>
+      <div class="legend" style="justify-content:center">
+        <span style="--c:#f28c28">Dış duvar</span><span style="--c:#3fbf5f">İç duvar</span><span style="--c:#d2553f">Dolgu</span>
+        <span style="--c:#8e6bd8">Dolu katman</span><span style="--c:#4aa8e8">Üst/alt yüzey</span><span style="--c:#2bb5a8">Destek</span><span style="--c:#8a938f">Kenarlık</span>
+      </div>
     </div>
     <label class="check"><input type="checkbox" id="showSup" checked> Destekleri göster</label>
+    <p class="note" id="viewHint">Turuncu yüzeyler destek gerektirebilir.</p>
+
     <div id="partsBox" class="parts">
-      <div class="note" id="partsInfo"></div>
+      <div class="parts-head"><h2 id="partsTitle">Düzenle</h2><span class="note" id="partsInfo"></span></div>
       <div id="partList" class="partlist"></div>
-      <div class="row">
-        <button class="btn" id="pDel" type="button">Sil</button>
-        <button class="btn" id="pOnly" type="button">Sadece bunu tut</button>
-        <button class="btn" id="pSplit" type="button">Parçalara ayır</button>
+      <div class="tools">
+        <button class="tool" id="tRot" type="button" aria-expanded="false" aria-controls="rotPanel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg><span>Döndür</span></button>
+        <button class="tool" id="tMove" type="button" aria-expanded="false" aria-controls="movePanel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg><span>Taşı</span></button>
+        <button class="tool" id="tCut" type="button" aria-expanded="false" aria-controls="cutBox">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M2 12h20" stroke-dasharray="2.5 2"/></svg><span>Kes</span></button>
+        <button class="tool" id="pSplit" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/><path d="M14 6h4v4M10 18H6v-4"/></svg><span>Ayır</span></button>
+        <button class="tool" id="pArrange" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg><span>Tablaya diz</span></button>
+        <button class="tool" id="pOnly" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span>Sadece bu</span></button>
+        <button class="tool danger" id="pDel" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/></svg><span>Sil</span></button>
+        <button class="tool" id="pUndo" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>Geri al</span></button>
       </div>
-      <div class="row">
-        <button class="btn" id="rotX" type="button" aria-label="X ekseninde 90 derece çevir">X 90°</button>
-        <button class="btn" id="rotY" type="button" aria-label="Y ekseninde 90 derece çevir">Y 90°</button>
-        <button class="btn" id="rotZ" type="button" aria-label="Z ekseninde 90 derece çevir">Z 90°</button>
+      <div class="toolpanel" id="rotPanel" hidden>
+        <span class="note" style="flex-basis:100%">Seçili parçayı 90° çevir</span>
+        <button class="btn" id="rotX" type="button" aria-label="X ekseninde 90 derece çevir">X ekseni</button>
+        <button class="btn" id="rotY" type="button" aria-label="Y ekseninde 90 derece çevir">Y ekseni</button>
+        <button class="btn" id="rotZ" type="button" aria-label="Z ekseninde 90 derece çevir">Z ekseni</button>
       </div>
-      <div class="row">
-        <button class="btn" id="mL" type="button" aria-label="5 mm sola taşı">←</button>
-        <button class="btn" id="mR" type="button" aria-label="5 mm sağa taşı">→</button>
-        <button class="btn" id="mU" type="button" aria-label="5 mm geriye taşı">↑</button>
-        <button class="btn" id="mD" type="button" aria-label="5 mm öne taşı">↓</button>
+      <div class="toolpanel" id="movePanel" hidden>
+        <div class="pad">
+          <span></span><button class="btn" id="mU" type="button" aria-label="5 mm geriye taşı">↑</button><span></span>
+          <button class="btn" id="mL" type="button" aria-label="5 mm sola taşı">←</button><button class="btn" id="mD" type="button" aria-label="5 mm öne taşı">↓</button><button class="btn" id="mR" type="button" aria-label="5 mm sağa taşı">→</button>
+        </div>
+        <p class="note" style="flex:1 1 140px">Her basış seçili parçayı 5 mm kaydırır.</p>
       </div>
-      <div class="row">
-        <button class="btn" id="pArrange" type="button">Tablaya diz</button>
-        <button class="btn" id="pUndo" type="button">Geri al</button>
-      </div>
-      <details id="cutBox">
+      <details id="cutBox" class="toolpanel cut">
         <summary>Kes</summary>
         <div class="grid">
           <div class="field wide"><label for="cutZ">Kesme yüksekliği: <span id="cutVal">0</span> mm</label>
             <input type="range" id="cutZ" min="0" max="10" step="0.2" value="5"></div>
           <button class="btn" id="cutBelow" type="button">Altı kalsın</button>
           <button class="btn" id="cutAbove" type="button">Üstü kalsın</button>
-          <p class="note wide">Kesim seçili parçaya uygulanır. Üst parça, kesik yüzü tablaya gelecek şekilde oturur.</p>
+          <p class="note wide">Kesilecek yer görünümde gösterilir. Üst parça, kesik yüzü tablaya gelecek şekilde oturur.</p>
         </div>
       </details>
     </div>
-    <div id="sliceExtra" hidden>
-      <canvas id="layerView" aria-label="Seçili katmanın üstten görünümü"></canvas>
-      <div class="legend" style="margin-top:8px">
-        <span style="--c:#f28c28">Dış duvar</span><span style="--c:#3fbf5f">İç duvar</span><span style="--c:#d2553f">Dolgu</span>
-        <span style="--c:#8e6bd8">Dolu katman</span><span style="--c:#4aa8e8">Üst/alt yüzey</span><span style="--c:#2bb5a8">Destek</span><span style="--c:#8a938f">Kenarlık</span>
-      </div>
-    </div>
-    <p class="note" id="viewHint">Turuncu yüzeyler destek gerektirebilir.</p>
   </section>
 
-  <section class="panel settings">
+  <section class="card c-set settings">
     <h2>Ayarlar</h2>
-    <div class="grid" style="padding-bottom:12px">
+    <div class="grid basic">
       <div class="field wide"><label for="sPreset">Hazır ayar</label><select id="sPreset"></select></div>
-      <div class="field wide"><label for="sMat">Malzeme</label><select id="sMat"></select></div>
+      <div class="field wide"><label for="sMat">Filament</label><select id="sMat"></select></div>
       <div class="field wide"><label for="sInfill">Dolgu: <span id="infillVal">15</span>%</label>
         <input type="range" id="sInfill" min="0" max="100" step="5" value="15"></div>
       <div class="field"><label for="sWalls">Duvar sayısı</label>
         <input type="number" id="sWalls" min="1" max="12" step="1" value="2" inputmode="numeric"></div>
       <div class="field"><label for="sSupType">Destek türü</label>
         <select id="sSupType"><option value="tree" selected>Ağaç</option><option value="normal">Normal</option></select></div>
-      <label class="check wide"><input type="checkbox" id="sSupport"> Destek kullan</label>
+      <label class="switch wide"><input type="checkbox" id="sSupport" role="switch"><span class="track" aria-hidden="true"></span><span>Destek kullan</span></label>
     </div>
-    <details>
-      <summary>Kalite ve dayanım</summary>
+
+    <details class="acc">
+      <summary><span class="t">Kalite ve dayanım</span><span class="v" id="sumQ"></span></summary>
       <div class="grid">
         <div class="field"><label for="sLayer">Katman yüksekliği</label>
           <select id="sLayer"><option value="0.08">0,08 mm</option><option value="0.12">0,12 mm</option><option value="0.16">0,16 mm</option><option value="0.2" selected>0,20 mm</option><option value="0.24">0,24 mm</option><option value="0.28">0,28 mm</option></select></div>
@@ -239,12 +345,12 @@ details .grid{padding-bottom:16px}
           <input type="number" id="sBot" min="0" max="30" step="1" value="3" inputmode="numeric"></div>
         <div class="field"><label for="sLw">Çizgi genişliği (mm)</label>
           <input type="number" id="sLw" min="0.3" max="0.8" step="0.01" value="0.42" inputmode="decimal"></div>
-        <div class="field"><label for="sMode">Hız modu</label>
+        <div class="field" id="modeField"><label for="sMode">Hız modu</label>
           <select id="sMode"><option value="0.5">Sessiz</option><option value="1" selected>Standart</option><option value="1.24">Sport</option><option value="1.66">Ludicrous</option></select></div>
       </div>
     </details>
-    <details>
-      <summary>Destek ve kenarlık</summary>
+    <details class="acc">
+      <summary><span class="t">Destek ve kenarlık</span><span class="v" id="sumS"></span></summary>
       <div class="grid">
         <div class="field"><label for="sAngle">Destek eşik açısı (°)</label>
           <input type="number" id="sAngle" min="5" max="80" step="5" value="30" inputmode="numeric"></div>
@@ -252,22 +358,22 @@ details .grid{padding-bottom:16px}
           <input type="number" id="sBrim" min="0" max="20" step="1" value="0" inputmode="decimal"></div>
       </div>
     </details>
-    <details>
-      <summary>Renkli baskı</summary>
+    <details class="acc">
+      <summary><span class="t">Renkli baskı</span><span class="v" id="sumC"></span></summary>
       <div class="grid">
         <div class="field"><label for="sColors">Renk sayısı</label>
           <select id="sColors"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
         <div class="field"><label for="sColorPct">Renkli katman oranı (%)</label>
           <input type="number" id="sColorPct" min="1" max="100" step="5" value="100" inputmode="numeric"></div>
         <div class="field"><label for="sTChange">Değişim süresi (sn)</label>
-          <input type="number" id="sTChange" min="0" max="600" step="1" value="85" inputmode="numeric"></div>
-        <div class="field"><label for="sPurge">Değişim atığı (mm³)</label>
-          <input type="number" id="sPurge" min="0" max="2000" step="10" value="325" inputmode="numeric"></div>
+          <input type="number" id="sTChange" min="0" max="600" step="1" value="114" inputmode="numeric"></div>
+        <div class="field"><label for="sPurge" id="purgeLabel">Değişim atığı (mm³)</label>
+          <input type="number" id="sPurge" min="0" max="2000" step="5" value="250" inputmode="numeric"></div>
         <p class="note wide" id="colorNote"></p>
       </div>
     </details>
-    <details>
-      <summary>Hız ve ivme</summary>
+    <details class="acc">
+      <summary><span class="t">Hız ve ivme</span><span class="v" id="sumV"></span></summary>
       <div class="grid">
         <div class="field"><label for="vOut">Dış duvar (mm/sn)</label><input type="number" id="vOut" min="10" max="600" step="10" value="200" inputmode="numeric"></div>
         <div class="field"><label for="vIn">İç duvar (mm/sn)</label><input type="number" id="vIn" min="10" max="600" step="10" value="300" inputmode="numeric"></div>
@@ -283,8 +389,8 @@ details .grid{padding-bottom:16px}
         <div class="field"><label for="sMinLayer">En kısa katman (sn)</label><input type="number" id="sMinLayer" min="0" max="60" step="1" value="6" inputmode="numeric"></div>
       </div>
     </details>
-    <details>
-      <summary>Diğer</summary>
+    <details class="acc">
+      <summary><span class="t">Diğer</span><span class="v" id="sumO"></span></summary>
       <div class="grid">
         <div class="field"><label for="sCopies">Adet</label>
           <input type="number" id="sCopies" min="1" max="100" step="1" value="1" inputmode="numeric"></div>
@@ -298,21 +404,23 @@ details .grid{padding-bottom:16px}
         <button class="btn wide" id="resetBtn" type="button">Ayarları sıfırla</button>
       </div>
     </details>
-    <details id="calBox">
-      <summary>Bambu Studio ile karşılaştır</summary>
+    <details class="acc" id="calBox">
+      <summary><span class="t">Dilimleyici ile karşılaştır</span><span class="v" id="sumCal"></span></summary>
       <div class="grid">
-        <p class="note wide">Aynı ayarlarla Bambu Studio'da dilimle; "Model printing time" ve gramı yaz, kaydet. Uygulama bu kayıtlarla kendini ayarlar. Bambu'nun dilimlenmiş .3mf dosyasını açarsan bilgiler kendiliğinden okunur.</p>
+        <p class="note wide" id="calIntro">Aynı ayarlarla dilimleyicide dilimle; "Model printing time" ve gramı yaz, kaydet. Uygulama bu kayıtlarla kendini ayarlar. Dilimlenmiş .3mf dosyasını açarsan bilgiler kendiliğinden okunur.</p>
         <div class="field"><label for="calH">Saat</label><input type="number" id="calH" min="0" max="200" step="1" placeholder="0" inputmode="numeric"></div>
-        <div class="field"><label for="calM">Dakika</label><input type="number" id="calM" min="0" max="59" step="1" placeholder="31" inputmode="numeric"></div>
-        <div class="field"><label for="calS">Saniye</label><input type="number" id="calS" min="0" max="59" step="1" placeholder="58" inputmode="numeric"></div>
-        <div class="field"><label for="calG">Gram</label><input type="number" id="calG" min="0" step="0.01" placeholder="19,88" inputmode="decimal"></div>
-        <button class="btn wide" id="calSave" type="button">Bambu sonucunu kaydet</button>
+        <div class="field"><label for="calM">Dakika</label><input type="number" id="calM" min="0" max="59" step="1" placeholder="0" inputmode="numeric"></div>
+        <div class="field"><label for="calS">Saniye</label><input type="number" id="calS" min="0" max="59" step="1" placeholder="0" inputmode="numeric"></div>
+        <div class="field"><label for="calG">Gram</label><input type="number" id="calG" min="0" step="0.01" placeholder="0,0" inputmode="decimal"></div>
+        <button class="btn primary wide" id="calSave" type="button">Sonucu kaydet</button>
         <div class="wide" id="calList"></div>
         <button class="btn wide" id="calCopy" type="button">Verileri kopyala (Claude'a göndermek için)</button>
-        <textarea class="wide" id="calText" rows="6" readonly hidden style="font:12px ui-monospace,monospace;width:100%;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:8px"></textarea>
+        <textarea class="wide" id="calText" rows="6" readonly hidden style="font:12px ui-monospace,monospace;width:100%;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);padding:8px"></textarea>
       </div>
     </details>
   </section>
+
+  <footer class="foot" id="footNote">Süreler tahmindir. A1 için Bambu Studio, U1 için OrcaSlicer profilleri kullanılır.</footer>
 </main>
 
 <script>
@@ -674,7 +782,7 @@ const Core = (() => {
     const fil = settings ? {
       colours:(settings.filament_colour || []).slice(), ids:(settings.filament_settings_id || []).slice(),
       density:(settings.filament_density || []).map(Number), flush:(settings.flush_volumes_matrix || []).map(Number), mult:+(settings.flush_multiplier || [1])[0] || 1,
-      tower:settings.enable_prime_tower === '1' || settings.enable_prime_tower === true, towerW:+settings.prime_tower_width || 35
+      tower:settings.enable_prime_tower === '1' || settings.enable_prime_tower === true, towerW:+settings.prime_tower_width || 35, prime:+(Array.isArray(settings.prime_volume) ? settings.prime_volume[0] : settings.prime_volume) || 0, model:String(settings.printer_model || '')
     } : null;
     const plates = [...new Set(parts.map(p => p.plate))].sort((a, b) => a - b);
     return {parts, plates, fil, settings, sliced};
@@ -955,7 +1063,7 @@ const Core = (() => {
     flow:21, flowRatio:0.98, dens:1.26, minLayer:6, minSpeed:20,
     mode:1, copies:1, corr:1, prep:375, timelapse:0, cooling:true,
     support:false, supType:'tree', brim:0,
-    colors:1, changes:0, tChange:0, purgeVol:0, towerVol:0
+    colors:1, changes:0, tChange:0, purgeVol:0, towerVol:0, towerFlow:0
   };
 
   // Per-layer print model. G = {sl, plan, loops, st, sup}
@@ -1152,7 +1260,7 @@ const Core = (() => {
     }
     // ---- colour changes ----
     let tCol = 0, colVol = 0;
-    if (s.colors > 1 && s.changes > 0){ tCol = s.changes*s.tChange; colVol = s.changes*s.purgeVol + s.towerVol; }
+    if (s.colors > 1 && s.changes > 0){ tCol = s.changes*s.tChange + (s.towerFlow > 0 ? s.towerVol/s.towerFlow : 0); colVol = s.changes*s.purgeVol + s.towerVol; }
     const fr = s.flowRatio*T.fill;
     const printVol = (vol + supVol)*fr, total = vol*fr;
     let sum = 0; for (let i=0;i<N;i++) sum += layerT[i];
@@ -1446,31 +1554,47 @@ const Scene = (() => {
   const $ = id => document.getElementById(id);
   // ---------- printers: values taken from the printers' own slicer profiles ----------
   const P = (h, top, bot, vIn, vSp, vSo, extra) => Object.assign({h, topL:top, botL:bot, vInner:vIn, vSparse:vSp, vSolid:vSo}, extra || {});
+  // Values come from each printer's own slicer profiles: Bambu Studio for the A1, OrcaSlicer for the U1.
   const PRINTERS = {
-    a1: {name:'Bambu Lab A1', bed:[256,256,256], prep:375, tl:1.6, sup:'tree', tChange:114, purge:250, towerA:216, maxColors:4, colorVia:'AMS lite',
+    a1: {name:'Bambu Lab A1', slicer:'Bambu Studio', bed:[256,256,256], prep:375, sup:'tree', tChange:114, purge:250, towerA:216, towerW0:35, towerFlow:0, toolchanger:false, speedModes:true,
       base:{vOuter:200, vTop:200, vFirst:50, vFirstInf:105, vTravel:700, vBridge:50, aNorm:6000, aOuter:5000, aInner:0, aFirst:500, aTop:2000, aTravel:10000, jerk:9,
-        limAExt:12000, limATrav:9000, limVxy:500, limVz:30, limAz:1500, limVe:30, limAe:5000, retLen:0.8, retSpeed:30, zHop:0.4, h0:0.2, tlCredit:1.6, defMat:1},
-      presets:[['0,08 mm Extra Fine', P(0.08,10,7,350,450,350)], ['0,12 mm Fine', P(0.12,5,5,350,430,350)], ['0,16 mm Optimal', P(0.16,7,4,300,330,300)],
-        ['0,20 mm Standard', P(0.2,5,3,300,270,250)], ['0,20 mm Strength', P(0.2,5,3,300,270,250,{walls:6, infill:25, vOuter:60})],
-        ['0,24 mm Draft', P(0.24,5,3,230,230,230)], ['0,28 mm Extra Draft', P(0.28,4,3,200,200,200)]], def:3,
+        limAExt:12000, limATrav:9000, limVxy:500, limVz:30, limAz:1500, limVe:30, limAe:5000, retLen:0.8, retSpeed:30, zHop:0.4, h0:0.2, tlCredit:1.6, topMinT:1.0, vOv:[50,30,10], defMat:1},
+      presets:[
+        ['0,08 mm Extra Fine', P(0.08,9,7,350,450,350,{topMinT:0.8, vOv:[30,10,10], angle:15})],
+        ['0,08 mm High Quality', P(0.08,9,7,120,150,150,{vOuter:60, vTop:150, aNorm:4000, aOuter:2000, topMinT:0.8, pattern:'gyroid', vOv:[30,10,10], angle:15})],
+        ['0,12 mm Fine', P(0.12,5,5,350,430,350,{topMinT:0.6, vOv:[30,10,10], angle:20})],
+        ['0,12 mm High Quality', P(0.12,5,5,150,180,180,{vOuter:60, vTop:150, aNorm:4000, aOuter:2000, topMinT:0.6, pattern:'gyroid', vOv:[30,10,10], angle:20})],
+        ['0,16 mm High Quality', P(0.16,6,4,150,200,200,{vOuter:60, vTop:150, aNorm:4000, aOuter:2000, pattern:'gyroid', vOv:[30,10,10], angle:25})],
+        ['0,16 mm Optimal', P(0.16,6,4,300,330,300,{vOv:[30,10,10], angle:25})],
+        ['0,20 mm Standard', P(0.2,5,3,300,270,250,{angle:30})],
+        ['0,20 mm Strength', P(0.2,5,3,300,270,250,{walls:6, infill:25, vOuter:60, angle:30})],
+        ['0,24 mm Draft', P(0.24,4,3,230,230,230,{angle:35})],
+        ['0,28 mm Extra Draft', P(0.28,4,3,200,200,200,{angle:40})]], def:6,
       mats:[['Bambu PLA Basic',21,1.26,0.98,6,20], ['Bambu PLA Matte',22,1.32,0.98,6,20], ['Genel PLA',12,1.24,0.98,8,20], ['Bambu PETG HF',18,1.28,0.94,7,10],
         ['Bambu PETG Basic',13,1.25,0.94,12,10], ['Bambu ABS',16,1.04,0.95,12,20], ['Bambu TPU 95A',3.6,1.22,1,8,10]]},
-    k1: {name:'Creality K1', bed:[220,220,250], prep:300, tl:0, sup:'normal', tChange:135, purge:325, maxColors:4, colorVia:'CFS',
-      base:{vOuter:200, vTop:200, vFirst:60, vFirstInf:60, vTravel:500, vBridge:30, aNorm:10000, aOuter:5000, aInner:5000, aFirst:1000, aTop:2000, aTravel:10000, jerk:20,
-        limAExt:20000, limATrav:20000, limVxy:800, limVz:20, limAz:300, limVe:100, limAe:5000, retLen:0.8, retSpeed:40, zHop:0.4, h0:0.2},
-      presets:[['0,08 mm SuperDetail', P(0.08,10,7,350,350,250)], ['0,12 mm Fine', P(0.12,5,3,300,500,300,{walls:3, aNorm:12000, aFirst:500, aTop:5000, vFirstInf:105, h0:0.12})],
-        ['0,16 mm Optimal', P(0.16,5,4,300,300,250)], ['0,20 mm Standard', P(0.2,5,3,300,270,250)], ['0,24 mm Draft', P(0.24,5,3,300,250,250)]], def:3,
-      mats:[['Genel PLA',18,1.24,0.98,8,20], ['Genel PLA High Speed',23,1.24,0.98,8,20], ['Genel PETG',9,1.27,0.95,12,20], ['Genel ABS',14,1.04,0.926,5,20], ['Genel TPU',3.5,1.24,1,5,10]]},
-    u1: {name:'Snapmaker U1', bed:[270,270,270], prep:300, tl:0, sup:'tree', tChange:12, purge:45, maxColors:4, colorVia:'4 baskı kafası',
+    // U1: each colour has its own head. A change costs ~5 s plus priming on the tower (prime volume per preset),
+    // so the tower itself only adds a thin sparse shell per layer.
+    u1: {name:'Snapmaker U1', slicer:'OrcaSlicer', bed:[270,270,270], prep:0, sup:'tree', tChange:12, purge:45, towerA:90, towerW0:30, towerFlow:8, toolchanger:true, speedModes:false,
       base:{vOuter:200, vTop:200, vFirst:50, vFirstInf:105, vTravel:500, vBridge:50, aNorm:10000, aOuter:5000, aInner:0, aFirst:500, aTop:2000, aTravel:0, jerk:9,
-        limAExt:20000, limATrav:20000, limVxy:500, limVz:20, limAz:500, limVe:30, limAe:5000, retLen:1.5, retSpeed:30, zHop:0.4, h0:0.2},
-      presets:[['0,08 mm Extra Fine', P(0.08,10,7,350,450,350,{vOuter:100})], ['0,12 mm Fine', P(0.12,5,5,350,430,350)], ['0,16 mm Optimal', P(0.16,7,4,300,330,300)],
-        ['0,20 mm Standard', P(0.2,5,3,300,270,250,{h0:0.25})], ['0,20 mm Strength', P(0.2,5,3,300,270,250,{walls:6, infill:25, vOuter:60})],
-        ['0,24 mm Draft', P(0.24,5,3,230,230,230)], ['0,28 mm Extra Draft', P(0.28,4,3,200,200,200)]], def:3,
-      mats:[['Snapmaker PLA',14,1.24,0.98,8,15], ['Snapmaker PLA SnapSpeed',20,1.24,0.966,4,20], ['Snapmaker PETG',10,1.25,0.95,8,20], ['Snapmaker ABS',8,1.04,0.95,3,20], ['Snapmaker TPU',2.8,1.24,1,8,10]]}
+        limAExt:20000, limATrav:20000, limVxy:500, limVz:20, limAz:500, limVe:30, limAe:5000, retLen:1.5, retSpeed:30, zHop:0.4, h0:0.2, topMinT:1.0, vOv:[50,30,10], defMat:0},
+      presets:[
+        ['0,08 mm Extra Fine', P(0.08,9,7,350,450,350,{vOuter:100, topMinT:0.8, vOv:[30,10,10], angle:15, prime:18})],
+        ['0,08 mm High Quality', P(0.08,9,7,120,150,150,{vOuter:60, vTop:150, aNorm:4000, aOuter:2000, topMinT:0.8, pattern:'gyroid', vOv:[30,10,10], angle:15, prime:18})],
+        ['0,12 mm Fine', P(0.12,5,5,350,430,350,{topMinT:0.6, vOv:[30,10,10], angle:25, prime:27})],
+        ['0,12 mm High Quality', P(0.12,5,5,150,180,180,{vOuter:60, vTop:150, aNorm:4000, aOuter:2000, topMinT:0.6, pattern:'gyroid', vOv:[30,10,10], angle:25, prime:27})],
+        ['0,16 mm High Quality', P(0.16,6,4,150,200,200,{vOuter:60, vTop:150, aNorm:4000, aOuter:2000, pattern:'gyroid', vOv:[30,10,10], angle:30, prime:36})],
+        ['0,16 mm Optimal', P(0.16,6,4,300,330,300,{vOv:[30,10,10], angle:25, prime:36})],
+        ['0,20 mm Standard', P(0.2,5,3,300,270,250,{h0:0.25, angle:30, prime:45})],
+        ['0,20 mm Strength', P(0.2,5,3,300,270,250,{walls:6, infill:25, vOuter:60, angle:30, prime:45})],
+        ['0,24 mm Draft', P(0.24,4,3,230,230,230,{angle:35, prime:54})],
+        ['0,28 mm Extra Draft', P(0.28,4,3,200,200,200,{angle:40, prime:63})]], def:6,
+      mats:[['Snapmaker PLA',14,1.24,0.98,8,15], ['Snapmaker PLA SnapSpeed',20,1.24,0.966,4,20], ['Snapmaker PLA Matte',22,1.32,1,4,20], ['Snapmaker PLA Basic',15,1.32,0.98,4,20],
+        ['Snapmaker PLA Silk',10,1.32,0.98,4,20], ['Snapmaker PLA-CF',15,1.24,0.98,7,20], ['Snapmaker PETG',10,1.25,0.95,8,20], ['Snapmaker PETG HF',16,1.28,0.95,25,10],
+        ['Snapmaker ABS',8,1.04,0.95,3,20], ['Snapmaker ASA',8,1.04,0.94,5,20], ['Snapmaker TPU 95A',3.2,1.24,1,8,10],
+        ['Genel PLA',12,1.24,0.98,8,15], ['Genel PLA High Speed',18,1.24,0.98,4,15], ['Genel PETG',10,1.29,1,2,50], ['Genel TPU',2.8,1.24,1,8,10]]}
   };
   const S = {pos:null, size:[0,0,0], G:null, Gkey:'', sup:null, supKey:'', sliced:null, scale:1, noMesh:false, view:'model', pvExt:100, hidden:{}, vol:0};
-  const KEY = 'baski-sure-ayar-7';
+  const KEY = 'baski-sure-ayar-8';
   const ids = ['sPrinter','sPreset','sLayer','sLw','sMat','sMode','sInfill','sPattern','sWalls','sTop','sBot','sSupport','sSupType','sAngle','sBrim','sColors','sColorPct','sTChange','sPurge',
     'vOut','vIn','vSparse','vSolid','vTop','vFirst','vFirstInf','vTravel','aNorm','aOut','sFlow','sMinLayer','sCopies','sPrice','sCorr','sPrep'];
   const printer = () => PRINTERS[$('sPrinter').value] || PRINTERS.a1;
@@ -1485,22 +1609,28 @@ const Scene = (() => {
     $('sPreset').innerHTML = '<option value="">Özel</option>' + pr.presets.map((p, i) => `<option value="${i}">${p[0]}</option>`).join('');
     $('sMat').innerHTML = pr.mats.map((m, i) => `<option value="${i}">${m[0]}</option>`).join('');
     if (!keepMat) $('sMat').value = pr.base.defMat || 0;
-    $('prepLabel').textContent = `Hazırlık süresini dahil et (yaklaşık ${Math.round(pr.prep/60)} dk)`;
-    $('colorNote').textContent = 'A1, AMS lite ile her renk değişiminde filamenti geri çekip yenisini yükler; süre ve atık bu yüzden yüksektir. Model sadece kısmen renkliyse oranı düşür.';
+    $('prepLabel').textContent = pr.prep ? `Hazırlık süresini dahil et (ısınma ve tabla ölçümü, yaklaşık ${Math.round(pr.prep/60)} dk)` : `Hazırlık süresi: ${pr.slicer} bu yazıcı için eklemiyor`;
+    $('sPrep').disabled = !pr.prep; $('sPrep').hidden = !pr.prep;
+    $('modeField').hidden = !pr.speedModes; if (!pr.speedModes) $('sMode').value = 1;
+    $('purgeLabel').textContent = pr.toolchanger ? 'Değişim başına prime (mm³)' : 'Değişim atığı (mm³)';
+    $('colorNote').textContent = pr.toolchanger
+      ? 'U1 her renk için ayrı baskı kafası kullanır: değişim yaklaşık 5 sn sürer, atık yalnızca prime tower\'a basılan az miktardaki malzemedir. Model sadece kısmen renkliyse oranı düşür.'
+      : 'A1, AMS lite ile her renk değişiminde filamenti geri çekip yenisini yükler; süre ve atık bu yüzden yüksektir. Model sadece kısmen renkliyse oranı düşür.';
   }
   function applyPreset(i){
     const pr = printer(), p = pr.presets[i]; if (!p) return;
     const v = Object.assign({walls:2, infill:15}, pr.base, p[1]);
-    setV('sLayer', v.h); setV('sWalls', v.walls); setV('sInfill', v.infill); setV('sTop', v.topL); setV('sBot', v.botL); setV('sPattern', 'grid'); setV('sLw', 0.42);
+    setV('sLayer', v.h); setV('sWalls', v.walls); setV('sInfill', v.infill); setV('sTop', v.topL); setV('sBot', v.botL); setV('sPattern', v.pattern || 'grid'); setV('sLw', 0.42); if (v.angle) setV('sAngle', v.angle);
     setV('vOut', v.vOuter); setV('vIn', v.vInner); setV('vSparse', v.vSparse); setV('vSolid', v.vSolid); setV('vTop', v.vTop); setV('vFirst', v.vFirst); setV('vFirstInf', v.vFirstInf);
     setV('vTravel', v.vTravel); setV('aNorm', v.aNorm); setV('aOut', v.aOuter);
-    S.hidden = {aInner:v.aInner, aFirst:v.aFirst, aTop:v.aTop, h0:v.h0};
+    S.hidden = {aInner:v.aInner, aFirst:v.aFirst, aTop:v.aTop, h0:v.h0, topMinT:v.topMinT, vOv:v.vOv, prime:v.prime};
+    if (pr.toolchanger && v.prime) setV('sPurge', v.prime);
     $('sPreset').value = i; $('infillVal').textContent = $('sInfill').value;
   }
   function applyMaterial(){ const m = printer().mats[+$('sMat').value]; if (m){ setV('sFlow', m[1]); setV('sMinLayer', m[4]); } }
   function applyPrinterDefaults(){
     const pr = printer(); fillPrinter(false); applyPreset(pr.def); applyMaterial();
-    setV('sSupType', pr.sup); setV('sTChange', pr.tChange); setV('sPurge', pr.purge);
+    setV('sSupType', pr.sup); setV('sTChange', pr.tChange); if (!pr.toolchanger) setV('sPurge', pr.purge);
   }
 
   function settings(){
@@ -1521,7 +1651,8 @@ const Scene = (() => {
       copies:Math.round(num('sCopies',1,1,100)), corr:num('sCorr',100,50,200)/100*calFactor($('sPrinter').value),
       prep:$('sPrep').checked ? pr.prep : 0, timelapse:0,
       support:$('sSupport').checked, supType:$('sSupType').value, angle:num('sAngle',30,5,80), brim:num('sBrim',0,0,20),
-      colors, changes, tChange:num('sTChange',114,0,600), purgeVol:num('sPurge',250,0,2000), towerVol: colors > 1 ? cl*h*(pr.towerA || 216) : 0
+      topMinT: hid.topMinT || pr.base.topMinT || 1, vOv: hid.vOv || pr.base.vOv,
+      colors, changes, tChange:num('sTChange',114,0,600), purgeVol:num('sPurge',250,0,2000), towerVol: colors > 1 ? cl*h*(pr.towerA || 216) : 0, towerFlow: pr.towerFlow || 0
     });
   }
 
@@ -1563,20 +1694,22 @@ const Scene = (() => {
   }
   const pct = (a, b) => (a > b ? '+' : '−') + '%' + tr(Math.abs(a/b - 1)*100);
   function renderCal(){
-    const id = $('sPrinter').value, L = CAL[id] || [], f = calFactor(id), g = calGFactor(id);
-    $('calNote').textContent = L.length ? `${L.length} Bambu sonucuyla ayarlandı (süre ${f >= 1 ? '+' : '−'}%${tr(Math.abs(f-1)*100)}, gram ${g >= 1 ? '+' : '−'}%${tr(Math.abs(g-1)*100)}).` : '';
+    const id = $('sPrinter').value, L = CAL[id] || [], f = calFactor(id), g = calGFactor(id), sl = printer().slicer;
+    $('calIntro').textContent = `Aynı ayarlarla ${sl} ile dilimle; "Model printing time" ve gramı yaz, kaydet. Uygulama bu kayıtlarla kendini ayarlar. ${sl} ile dilimlenmiş .3mf dosyasını açarsan bilgiler kendiliğinden okunur.`;
+    $('calNote').textContent = L.length ? `${L.length} ${sl} sonucuyla ayarlandı (süre ${f >= 1 ? '+' : '−'}%${tr(Math.abs(f-1)*100)}, gram ${g >= 1 ? '+' : '−'}%${tr(Math.abs(g-1)*100)}).` : '';
     $('calList').innerHTML = L.length ? L.map((x, i) => `<div class="calrow"><span>${x.name.replace(/[<&>]/g, '')}: ` +
-      (x.ref ? `Bambu ${fmtTimeText(x.ref)}, uygulama ${fmtTimeText(x.raw)} (${pct(x.raw, x.ref)})` : '') +
-      (x.refG ? `${x.ref ? '; ' : ''}Bambu ${tr(x.refG, 1)} g, uygulama ${tr(x.rawG, 1)} g (${pct(x.rawG, x.refG)})` : '') +
+      (x.ref ? `${sl} ${fmtTimeText(x.ref)}, uygulama ${fmtTimeText(x.raw)} (${pct(x.raw, x.ref)})` : '') +
+      (x.refG ? `${x.ref ? '; ' : ''}${sl} ${tr(x.refG, 1)} g, uygulama ${tr(x.rawG, 1)} g (${pct(x.rawG, x.refG)})` : '') +
       `</span><button class="btn" type="button" data-i="${i}" aria-label="Sil">×</button></div>`).join('') +
       '<button class="btn" type="button" id="calClear" style="margin-top:8px;width:100%">Bütün kayıtları temizle</button>' : '<p class="note">Henüz kayıt yok.</p>';
     $('calCopy').hidden = !L.length;
+    renderSummaries();
   }
   function calDump(){
     const L = CAL[$('sPrinter').value] || [];
-    return ['A1 süre verisi (' + L.length + ' model). Süreler saniye, timelapse ve hazırlık hariç.'].concat(L.map(x => {
+    return [printer().name + ' süre verisi (' + L.length + ' model, ' + printer().slicer + '). Süreler saniye, timelapse ve hazırlık hariç.'].concat(L.map(x => {
       const n = x.info || {};
-      return [`MODEL ${x.name}`, `bambu: ${x.ref || '-'} sn, ${x.refG || '-'} g | uygulama: ${x.raw} sn, ${x.rawG} g`,
+      return [`MODEL ${x.name}`, `dilimleyici: ${x.ref || '-'} sn, ${x.refG || '-'} g | uygulama: ${x.raw} sn, ${x.rawG} g`,
         `boyut ${(n.size || []).join('x')} mm, hacim ${n.vol} cm3, ${n.tris} üçgen, ${n.layers} katman`,
         `ayar: katman ${n.h}/${n.h0}, duvar ${n.walls}, üst ${n.top}, alt ${n.bot}, dolgu %${n.infill} ${n.pattern}, destek ${n.support} ${n.angle}°, kenarlık ${n.brim}, ${n.mat}, minkatman ${n.minLayer}, akış ${n.flow}, hız ${n.speeds}, mod ${n.mode}`,
         `parçalar: ${JSON.stringify(n.parts || {})}, model ${n.gModel} g, destek ${n.gSup} g`].join('\n');
@@ -1596,7 +1729,7 @@ const Scene = (() => {
   $('calSave').addEventListener('click', () => {
     const sec = (parseFloat($('calH').value) || 0)*3600 + (parseFloat($('calM').value) || 0)*60 + (parseFloat($('calS').value) || 0);
     const g = parseFloat(String($('calG').value).replace(',', '.')) || 0;
-    if (!(sec > 0) && !(g > 0)) { fail('Önce Bambu Studio\'daki süreyi ya da filament gramını yaz.'); return; }
+    if (!(sec > 0) && !(g > 0)) { fail(`Önce ${printer().slicer} içindeki süreyi ya da filament gramını yaz.`); return; }
     $('error').hidden = true;
     if (addSample(S.fileName || 'Örnek küp', sec, false, g)) for (const id of ['calH','calM','calS','calG']) $(id).value = '';
   });
@@ -1607,8 +1740,8 @@ const Scene = (() => {
     const v = k => { let x = c[k]; if (Array.isArray(x)) x = x[0]; return x === undefined || x === null || x === '' ? null : String(x); };
     const n = k => { const x = v(k); if (x === null) return null; const f = parseFloat(x); return isFinite(f) ? f : null; };
     const model = v('printer_model') || v('printer_settings_id') || '';
-    const pid = /U1/i.test(model) ? 'u1' : /K1/i.test(model) ? 'k1' : /A1/i.test(model) ? 'a1' : null;
-    if (pid === 'a1' && pid !== $('sPrinter').value){ $('sPrinter').value = pid; applyPrinterDefaults(); setGrid(); }
+    const pid = /U1/i.test(model) ? 'u1' : /A1/i.test(model) ? 'a1' : null;
+    if (pid && pid !== $('sPrinter').value){ $('sPrinter').value = pid; applyPrinterDefaults(); setGrid(); syncMachine(); renderCal(); }
     const set = (id, x) => { if (x !== null && x !== undefined && x === x) setV(id, x); };
     const h = n('layer_height'); if (h) ensureOpt('sLayer', h);
     const h0 = n('initial_layer_print_height'); if (h0) S.hidden.h0 = h0;
@@ -1625,7 +1758,10 @@ const Scene = (() => {
     if (n('initial_layer_acceleration')) S.hidden.aFirst = n('initial_layer_acceleration');
     if (n('top_surface_acceleration')) S.hidden.aTop = n('top_surface_acceleration');
     const fid = (v('filament_settings_id') || '').toLowerCase();
-    if (fid){ const mi = printer().mats.findIndex(m => fid.includes(m[0].toLowerCase().replace('genel ', 'generic '))); if (mi >= 0) $('sMat').value = mi; }
+    if (fid){ let mi = -1, best = 0; printer().mats.forEach((m, i) => { const k = m[0].toLowerCase().replace('genel ', 'generic '); if (fid.includes(k) && k.length > best){ best = k.length; mi = i; } }); if (mi >= 0) $('sMat').value = mi; }
+    const tt = n('top_shell_thickness'); if (tt !== null) S.hidden.topMinT = tt;
+    if (n('overhang_2_4_speed') !== null) S.hidden.vOv = [n('overhang_2_4_speed') || 50, n('overhang_3_4_speed') || 30, n('overhang_4_4_speed') || 10];
+    const pv = n('prime_volume'); if (pv && printer().toolchanger){ S.hidden.prime = pv; setV('sPurge', pv); }
     set('sFlow', n('filament_max_volumetric_speed')); set('sMinLayer', n('slow_down_layer_time'));
     if (v('enable_support') !== null) setV('sSupport', v('enable_support') === '1' || v('enable_support') === 'true');
     const st = (v('support_type') || '').toLowerCase(); if (st) setV('sSupType', st.includes('tree') ? 'tree' : 'normal');
@@ -1635,7 +1771,7 @@ const Scene = (() => {
   }
 
   // ---------- 3D view ----------
-  const cv = $('view'); let gl = null, prog, buf, nzBuf, colBuf, supBuf, gridBuf, quadBuf, tex, gridN = 0, triN = 0, supN = 0, texReady = false;
+  const cv = $('view'); let gl = null, prog, buf, nzBuf, colBuf, bedBuf, supBuf, gridBuf, quadBuf, tex, gridN = 0, triN = 0, supN = 0, texReady = false;
   const cam = {th:-0.9, ph:0.5, dist:100, tx:0, ty:0, tz:10}; let clipZ = 1e9, stripeH = 0.2, cutZ = 0;
   function initGL(){
     gl = cv.getContext('webgl2', {antialias:true, alpha:true});
@@ -1664,7 +1800,7 @@ const Scene = (() => {
         o = vec4(base*l*stripe, 1.); }`));
     gl.bindAttribLocation(prog, 0, 'p'); gl.bindAttribLocation(prog, 1, 'nzA'); gl.bindAttribLocation(prog, 2, 'colA');
     gl.linkProgram(prog); gl.useProgram(prog);
-    buf = gl.createBuffer(); nzBuf = gl.createBuffer(); colBuf = gl.createBuffer(); supBuf = gl.createBuffer(); gridBuf = gl.createBuffer(); quadBuf = gl.createBuffer(); tex = gl.createTexture();
+    buf = gl.createBuffer(); nzBuf = gl.createBuffer(); colBuf = gl.createBuffer(); supBuf = gl.createBuffer(); gridBuf = gl.createBuffer(); bedBuf = gl.createBuffer(); quadBuf = gl.createBuffer(); tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.enable(gl.DEPTH_TEST);
@@ -1675,6 +1811,8 @@ const Scene = (() => {
     for (let y=-hy;y<=hy+0.1;y+=st) g.push(-hx,y,0, hx,y,0);
     g.push(hx,-hy,0, hx,hy,0, -hx,hy,0, hx,hy,0);
     gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(g), gl.STATIC_DRAW); gridN = g.length/3;
+    const z = -0.05;   // bed plate just under the model
+    gl.bindBuffer(gl.ARRAY_BUFFER, bedBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-hx,-hy,z, hx,-hy,z, hx,hy,z, -hx,-hy,z, hx,hy,z, -hx,hy,z]), gl.STATIC_DRAW);
   }
   function upload(resetCam){
     if (!gl) return;
@@ -1694,7 +1832,7 @@ const Scene = (() => {
         for (let i=0;i<m;i++, t++){ const c = S.palette[(ex ? ex[i] : 1) - 1] || [200,200,200]; for (let v=0;v<3;v++){ cv3[t*9+v*3] = c[0]; cv3[t*9+v*3+1] = c[1]; cv3[t*9+v*3+2] = c[2]; } } }
       gl.bindBuffer(gl.ARRAY_BUFFER, colBuf); gl.bufferData(gl.ARRAY_BUFFER, cv3, gl.STATIC_DRAW);
     }
-    if (resetCam){ const r = Math.max(15, Math.hypot(S.size[0], S.size[1], S.size[2])/2); cam.dist = r*2.7; }
+    if (resetCam){ const r = Math.max(18, Math.hypot(S.size[0], S.size[1], S.size[2])/2); cam.dist = r*3.1; }
     cam.tx = S.cA[0]; cam.ty = S.cA[1]; cam.tz = S.size[2]/2;
   }
   function uploadSup(){
@@ -1723,8 +1861,13 @@ const Scene = (() => {
     gl.uniform1f(U('clipZ'), sliced ? clipZ : 1e9); gl.uniform1f(U('lh'), stripeH); gl.uniform1i(U('mode'), sliced ? 1 : 0);
     gl.uniform1f(U('cosT'), Math.cos(num('sAngle',30,5,80)*Math.PI/180)); gl.uniform1f(U('ext'), S.pvExt); gl.uniform1i(U('tex'), 0);
     gl.enableVertexAttribArray(0); gl.disableVertexAttribArray(1); gl.vertexAttrib1f(1, 0);
+    const darkUI = document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+    gl.uniform1i(U('kind'), 2);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bedBuf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    if (darkUI) gl.uniform4f(U('col'), .105,.14,.125,1); else gl.uniform4f(U('col'), .885,.918,.9,1);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
-    gl.uniform1i(U('kind'), 2); gl.uniform4f(U('col'), .5,.56,.53,.55);
+    if (darkUI) gl.uniform4f(U('col'), .26,.32,.29,1); else gl.uniform4f(U('col'), .7,.76,.73,1);
     gl.drawArrays(gl.LINES, 0, gridN);
     if (triN){
       gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
@@ -1930,8 +2073,20 @@ const Scene = (() => {
     for (let i=0;i<A.length;i+=9) v += (A[i]*(A[i+4]*A[i+8]-A[i+5]*A[i+7]) + A[i+1]*(A[i+5]*A[i+6]-A[i+3]*A[i+8]) + A[i+2]*(A[i+3]*A[i+7]-A[i+4]*A[i+6]))/6;
     S.vol = Math.abs(v);
     upload(resetCam); renderParts(); recalc(resetLayer);
+    if (S.view === 'model') $('viewHint').textContent = modelHint();
   }
   const hex2rgb = h => { const m = /^#?([0-9a-f]{6})/i.exec(h || ''); if (!m) return [200,200,200]; const v = parseInt(m[1], 16); return [v >> 16, (v >> 8) & 255, v & 255]; };
+  // Colour changes from the painted model. A1 swaps filament through the AMS lite (flush per the file's table);
+  // U1 swaps print heads, so each change only primes a small amount on the tower.
+  function applyColors(s, sets){
+    let used = 0; for (const x of sets) used |= x;
+    if (!(used & (used - 1))){ s.colors = 1; s.changes = 0; s.towerVol = 0; return {used, cp:null}; }
+    const pr = printer(), cp = Core.colorPlan(sets, S.fil.flush, S.fil.colours.length, S.fil.mult);
+    s.colors = 2; s.changes = cp.changes;
+    s.purgeVol = pr.toolchanger ? (S.fil.prime || (S.hidden && S.hidden.prime) || pr.purge) : (cp.changes ? cp.purge*0.82/cp.changes : 0);
+    s.towerVol = S.fil.tower ? (cp.lastChange + 1)*s.h*(pr.towerA || 216)*(S.fil.towerW/(pr.towerW0 || 35)) : 0;
+    return {used, cp};
+  }
   function renderFil(){
     const el = $('filList');
     if (!S.fil || !S.usedFil){ el.hidden = true; $('colorNote').textContent = S.fil ? '' : $('colorNote').textContent; for (const id of ['sColors','sColorPct']) $(id).disabled = false; return; }
@@ -1959,11 +2114,7 @@ const Scene = (() => {
       if (s.support) G.sup = Core.supports(pos, size, {cosT:Math.cos(s.angle*Math.PI/180), type:s.supType, h:s.h});
       const loc = [], zmin = Scene.bbox(pos)[2]; o = 0;
       for (const p of parts){ loc.push({pos:pos.subarray(o, o + p.pos.length), ext:p.ext}); o += p.pos.length; }
-      if (S.fil){
-        const sets = Core.colorLayers(loc, s.h, s.h0, G.sl.N); let used = 0; for (const x of sets) used |= x;
-        if (used & (used - 1)){ const cp = Core.colorPlan(sets, S.fil.flush, S.fil.colours.length, S.fil.mult); s.colors = 2; s.changes = cp.changes; s.purgeVol = cp.changes ? cp.purge*0.82/cp.changes : 0; s.towerVol = S.fil.tower ? (cp.lastChange+1)*s.h*216*(S.fil.towerW/35) : 0; }
-        else { s.colors = 1; s.changes = 0; s.towerVol = 0; }
-      }
+      if (S.fil) applyColors(s, Core.colorLayers(loc, s.h, s.h0, G.sl.N));
       const e = Core.estimate(G, s); const gf = calGFactor($('sPrinter').value);
       rows.push([pl, e.print, e.grams*gf]); tot += e.print; totG += e.grams*gf;
     }
@@ -1976,12 +2127,14 @@ const Scene = (() => {
   $('plateAll').addEventListener('click', allPlates);
   function renderParts(){
     const many = S.objs.length > 1, sel = S.sel >= 0 && S.sel < S.objs.length;
-    $('partsInfo').textContent = many ? `${S.objs.length} parça. Listeden ya da görünümde üstüne dokunarak birini seç; işlemler seçili parçaya uygulanır.` : 'Döndürme, taşıma, kesme ve parçalara ayırma bu parçaya uygulanır.';
+    $('partsTitle').textContent = many ? `Parçalar (${S.objs.length})` : 'Düzenle';
+    $('partsInfo').textContent = many ? (sel ? 'İşlemler seçili parçaya uygulanır' : 'Listeden ya da modelin üstüne dokunarak bir parça seç') : '';
     $('partList').hidden = !many;
     $('partList').innerHTML = S.objs.map((o, i) => `<button type="button" data-i="${i}" aria-pressed="${i === S.sel}">${String(o.name).replace(/[<&>]/g, '')} · ${tr(o.w)}×${tr(o.d)}×${tr(o.h)}</button>`).join('');
     const need = !sel;
-    for (const id of ['pDel','pOnly']) $(id).disabled = need || !many;
-    for (const id of ['pSplit','rotX','rotY','rotZ','mL','mR','mU','mD','cutBelow','cutAbove']) $(id).disabled = need;
+    for (const id of ['pDel','pOnly']){ $(id).hidden = !many; $(id).disabled = need || !many; }
+    for (const id of ['pSplit','tRot','tMove','tCut','rotX','rotY','rotZ','mL','mR','mU','mD','cutBelow','cutAbove']) $(id).disabled = need;
+    if (need && S.tool) setTool(null);
     $('pArrange').disabled = false; $('pUndo').disabled = !S.undo;
     if (sel){ const h = S.objs[S.sel].h, el = $('cutZ'); el.max = (Math.max(0.4, h - 0.2)).toFixed(1); el.min = 0.2; if (+el.value > +el.max || +el.value < 0.2) el.value = (h/2).toFixed(1); $('cutVal').textContent = tr(+el.value, 1); }
   }
@@ -2016,14 +2169,8 @@ const Scene = (() => {
     S.G.sup = s.support ? S.sup : null;
     S.cplan = null;
     if (S.fil && S.objs.some(o => o.ext)){
-      const sets = Core.colorLayers(S.objs, s.h, s.h0, S.G.sl.N); let used = 0; for (const x of sets) used |= x;
-      S.usedFil = used;
-      if (used & (used - 1)){
-        const cp = Core.colorPlan(sets, S.fil.flush, S.fil.colours.length, S.fil.mult);
-        S.cplan = cp;
-        s.colors = 2; s.changes = cp.changes; s.purgeVol = cp.changes ? cp.purge*0.82/cp.changes : 0;
-        s.towerVol = S.fil.tower ? (cp.lastChange + 1)*s.h*(printer().towerA || 216)*(S.fil.towerW/35) : 0;
-      } else { s.colors = 1; s.changes = 0; s.towerVol = 0; }
+      const c = applyColors(s, Core.colorLayers(S.objs, s.h, s.h0, S.G.sl.N));
+      S.usedFil = c.used; S.cplan = c.cp;
     }
     renderFil();
     const r = Core.estimate(S.G, s); S.lt = r.layerT;
@@ -2041,7 +2188,7 @@ const Scene = (() => {
     const pt = r.parts, other = pt.travel + pt.cooling + pt.prep + pt.timelapse;
     const rows = [['Duvarlar', pt.walls, 'var(--accent)'], ['Dolu katmanlar', pt.solid, 'var(--seg2)'], ['Dolgu', pt.infill, 'var(--seg3)'], ['Destek', pt.support, 'var(--seg4)'], ['Renk değişimi', pt.color, '#8e6bd8'], ['Hazırlık ve geçiş', other, 'var(--seg5)']];
     $('bar').innerHTML = rows.map(n => `<i style="width:${(n[1]/r.total*100).toFixed(2)}%;background:${n[2]}"></i>`).join('');
-    $('legend').innerHTML = rows.filter(n => n[1] > 20).map(n => `<span style="--c:${n[2]}">${n[0]} ${fmtTimeText(n[1])}</span>`).join('');
+    $('legend').innerHTML = rows.filter(n => n[1] >= 30).map(n => `<span style="--c:${n[2]}">${n[0]} ${fmtTimeText(n[1])}</span>`).join('');
     $('breakdown').hidden = false;
     const gs = [];
     if (r.gramsSupport > 0.05) gs.push(`destek ${tr(r.gramsSupport, 1)} g`);
@@ -2058,7 +2205,7 @@ const Scene = (() => {
     if (S.sup && S.sup.ovArea > 25 && S.sup.cols.length && !s.support) w.push(`Yaklaşık ${tr(S.sup.ovArea/100, 1)} cm² askıda yüzey var (Model görünümünde turuncu). Destek gerekebilir: "Destek kullan"ı açarak etkisini gör.`);
     $('warn').hidden = !w.length; $('warn').innerHTML = w.join('<br>');
     $('showSup').parentElement.hidden = !s.support;
-    savePrefs(); queueLayer();
+    renderSummaries(); savePrefs(); queueLayer();
   }
   function showSliced(){
     const el = $('sliced');
@@ -2104,7 +2251,7 @@ const Scene = (() => {
       if (has && settingsFile) applyProject(settingsFile);
       if (has){ if (S.proj && S.proj.plates.length > 1) showPlate(S.proj.plates[0]); else setParts(parts && parts.length ? parts : [{name:file.name.replace(/\.[^.]+$/, ''), pos}]); } else showNoMesh();
       if (has && sliced && sliced.print > 0){
-        if (addSample(file.name, sliced.print, true, sliced.grams || 0)) $('fileName').textContent = file.name + ': Bambu ayarları ve gerçek süre okundu, tahmin buna göre ayarlandı.';
+        if (addSample(file.name, sliced.print, true, sliced.grams || 0)) $('fileName').textContent = file.name + ': dilimleyici ayarları ve gerçek süre okundu, tahmin buna göre ayarlandı.';
       } else if (has && settingsFile) $('fileName').textContent = file.name + ': dosyadaki baskı ayarları uygulandı.';
     } catch (e) {
       fail('Dosya okunamadı. Dosya bozuk olabilir ya da telefonun bu boyutta bir dosya için yeterli belleği yok.');
@@ -2151,12 +2298,41 @@ const Scene = (() => {
     S.objs = S.objs.map(o => { const p = new Float32Array(o.pos.length); for (let i=0;i<p.length;i++) p[i] = o.pos[i]*k; return Object.assign({}, o, {pos:p, x:o.x*k, y:o.y*k, w:o.w*k, d:o.d*k, h:o.h*k}); });
     S.scale = ns; rebuild(false, false);
   });
-  function setView(v){ S.view = v; $('viewModel').setAttribute('aria-pressed', v === 'model'); $('viewSliced').setAttribute('aria-pressed', v === 'sliced'); $('sliceExtra').hidden = v !== 'sliced'; $('viewHint').textContent = v === 'sliced' ? 'Kaydırıcı modeli seçili katmandan keser. Destekler şematik çizilir.' : 'Turuncu yüzeyler destek gerektirebilir.'; if (v === 'sliced') queueLayer(); draw(); }
+  const modelHint = () => S.useCol ? 'Dosyadaki filament renkleri gösteriliyor. Sürükleyerek döndür, iki parmakla yakınlaştır.' : 'Turuncu yüzeyler destek gerektirebilir. Sürükleyerek döndür, iki parmakla yakınlaştır.';
+  function setView(v){ S.view = v; $('viewModel').setAttribute('aria-pressed', v === 'model'); $('viewSliced').setAttribute('aria-pressed', v === 'sliced'); $('sliceExtra').hidden = v !== 'sliced'; $('viewHint').textContent = v === 'sliced' ? 'Kaydırıcı modeli seçili katmandan keser. Destekler şematik çizilir.' : modelHint(); if (v === 'sliced') queueLayer(); draw(); }
+  // ---------- machine choice, tool panels, setting summaries ----------
+  function syncMachine(){ const v = $('sPrinter').value; document.querySelectorAll('#machineSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === v)); }
+  document.querySelectorAll('#machineSeg button').forEach(b => b.addEventListener('click', () => {
+    if ($('sPrinter').value === b.dataset.p) return;
+    $('sPrinter').value = b.dataset.p; $('sPrinter').dispatchEvent(new Event('change'));
+  }));
+  const TOOLS = {tRot:'rotPanel', tMove:'movePanel', tCut:'cutBox'};
+  function setTool(id){
+    S.tool = id || null;
+    for (const [b, p] of Object.entries(TOOLS)){
+      const on = b === id; $(b).setAttribute('aria-expanded', on); $(b).classList.toggle('on', on);
+      if (p === 'cutBox'){ if ($(p).open !== on) $(p).open = on; } else $(p).hidden = !on;
+    }
+  }
+  for (const b of Object.keys(TOOLS)) $(b).addEventListener('click', () => setTool(S.tool === b ? null : b));
+  $('cutBox').addEventListener('toggle', () => { if (!$('cutBox').open && S.tool === 'tCut') setTool(null); });
+  const PAT = {grid:'ızgara', lines:'çizgi', triangles:'üçgen', cubic:'kübik', gyroid:'gyroid', honeycomb:'bal peteği'};
+  function renderSummaries(){
+    const put = (id, t) => { $(id).textContent = t; };
+    put('sumQ', `${tr(parseFloat($('sLayer').value), 2)} mm · ${PAT[$('sPattern').value] || ''}`);
+    put('sumS', `${$('sAngle').value}° · kenarlık ${$('sBrim').value} mm`);
+    let nf = 0; for (let x = S.usedFil || 0; x; x &= x - 1) nf++;
+    put('sumC', nf > 1 ? `${nf} filament, dosyadan` : (+$('sColors').value > 1 ? `${$('sColors').value} renk` : 'tek renk'));
+    put('sumV', `dış duvar ${$('vOut').value} mm/sn`);
+    const price = parseFloat($('sPrice').value);
+    put('sumO', `${$('sCopies').value} adet · ölçek %${$('sScale').value}` + (price > 0 ? ` · ${tr(price)} ₺/kg` : ''));
+    const L = CAL[$('sPrinter').value] || []; put('sumCal', L.length ? `${L.length} kayıt` : 'kayıt yok');
+  }
   $('viewModel').addEventListener('click', () => setView('model'));
   $('viewSliced').addEventListener('click', () => setView('sliced'));
   $('showSup').addEventListener('change', queueLayer);
 
-  $('sPrinter').addEventListener('change', () => { applyPrinterDefaults(); setGrid(); renderCal(); recalc(); });
+  $('sPrinter').addEventListener('change', () => { applyPrinterDefaults(); setGrid(); syncMachine(); renderCal(); recalc(); });
   $('sPreset').addEventListener('change', () => { if ($('sPreset').value !== '') { applyPreset(+$('sPreset').value); recalc(); } });
   $('sMat').addEventListener('change', () => { applyMaterial(); recalc(); });
   $('sLayer').addEventListener('change', () => { const h = parseFloat($('sLayer').value); setV('sTop', Math.max(3, Math.ceil(1/h - 1e-9))); setV('sBot', Math.max(3, Math.ceil(0.6/h - 1e-9))); });
@@ -2172,14 +2348,16 @@ const Scene = (() => {
   $('lyrDown').addEventListener('click', () => stepLayer(-1));
   $('lyrUp').addEventListener('click', () => stepLayer(1));
   window.addEventListener('resize', () => { draw(); queueLayer(); });
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => draw()); } catch (e) {}
 
   // start: defaults for the chosen printer, then whatever was saved
   let saved = null; try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
-  if (saved && saved.sPrinter !== 'a1') saved = null;   // older saves made for another printer
-  applyPrinterDefaults();
+  if (saved && !PRINTERS[saved.sPrinter]) saved = null;
+  if (saved) $('sPrinter').value = saved.sPrinter;
+  applyPrinterDefaults(); syncMachine();
   if (saved){ for (const id of ids) if (id in saved && id !== 'sPrinter'){ if (id === 'sPreset' || id === 'sMat'){ if ([...$(id).options].some(o => o.value === String(saved[id]))) $(id).value = saved[id]; } else setV(id, saved[id]); } if (saved.hidden) S.hidden = saved.hidden; }
   $('infillVal').textContent = $('sInfill').value;
-  initGL(); setGrid(); renderCal();
+  initGL(); setGrid(); renderCal(); renderSummaries(); setView('model');
   setModel(Core.cube(20));
 })();
 

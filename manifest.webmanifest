@@ -1,11 +1,11 @@
 {
-  "name": "A1 Baskı Süresi",
-  "short_name": "A1 Süre",
+  "name": "Baskı Süresi",
+  "short_name": "Baskı Süresi",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#121715",
-  "theme_color": "#121715",
+  "background_color": "#0d1210",
+  "theme_color": "#0d1210",
   "icons": [
     {"src": "icon-180.png", "sizes": "180x180", "type": "image/png"},
     {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"}
