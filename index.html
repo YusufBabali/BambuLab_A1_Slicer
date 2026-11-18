@@ -7,9 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="A1 Süre">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#f2f5f3" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121715" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#121715">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 
@@ -72,6 +70,19 @@ canvas{display:block;width:100%;border-radius:8px}
 #layerView{aspect-ratio:1/1;background:#161b19}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .row .btn{flex:1 1 auto;font-size:14px;font-weight:500;padding:8px 10px}
+.ptab{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;margin-top:6px}
+.ptab td{padding:4px 0;border-top:1px solid var(--line)}
+.ptab td:not(:first-child){text-align:right}
+.ptab tr.tot td{font-weight:600}
+.partlist{display:flex;flex-wrap:wrap;gap:6px}
+.partlist button{font:500 14px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 10px;min-height:40px;cursor:pointer;text-align:left}
+.partlist button[aria-pressed="true"]{background:var(--seg4);border-color:var(--seg4);color:#111}
+.parts{display:flex;flex-direction:column;gap:8px}
+.parts .row .btn{flex:1 1 0;font-size:15px}
+.btn:disabled{opacity:.45;cursor:default}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:500 15px var(--body);border:0;background:var(--surface);color:var(--muted);min-height:44px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
 .stepper{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center}
 .stepper .btn{padding:0;font-size:22px;line-height:1}
 .facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px;margin:0}
@@ -94,6 +105,8 @@ details[open] summary::after{content:"–"}
 details .grid{padding-bottom:16px}
 .settings{gap:0}
 .settings h2{margin-bottom:12px}
+.calrow{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:14px;border-top:1px solid var(--line);padding:6px 0}
+.calrow button{min-width:44px;min-height:44px;font-size:18px}
 [hidden]{display:none!important}
 @media (max-width:360px){.tiles{grid-template-columns:1fr 1fr}.time{font-size:46px}}
 </style>
@@ -102,20 +115,30 @@ details .grid{padding-bottom:16px}
 <main>
   <header>
     <h1>A1 Baskı Süresi</h1>
-    <p class="sub">Bambu Lab A1, 0,4 mm nozul. Dosya telefonundan çıkmaz, hesap burada yapılır.</p>
+    <p class="sub">Bambu Lab A1 · 0,4 mm nozul · dosya telefonundan çıkmaz</p>
   </header>
 
   <section class="panel">
     <input type="file" id="file" hidden>
     <button class="btn primary" id="pickBtn" type="button">Dosya seç (STL, 3MF, OBJ)</button>
-    <div class="file" id="fileName">Örnek model gösteriliyor: 20 mm küp</div>
+    <div class="file" id="fileName">Örnek model: 20 mm küp</div>
+    <div id="plateBox" hidden>
+      <div class="row">
+        <div class="field" style="flex:1 1 auto"><label for="plateSel">Tabla</label><select id="plateSel"></select></div>
+        <button class="btn" id="plateAll" type="button" style="align-self:flex-end">Tüm tablaları hesapla</button>
+      </div>
+      <div id="plateTable" class="note"></div>
+    </div>
+    <select id="sPrinter" hidden aria-hidden="true"><option value="a1" selected>Bambu Lab A1</option></select>
     <div class="alert" id="error" hidden></div>
   </section>
 
   <section class="panel" aria-live="polite">
     <div>
-      <div class="label" id="timeLabel">Tahmini süre</div>
+      <div class="label" id="timeLabel">Tahmini toplam süre</div>
       <div class="time" id="time">–</div>
+      <div class="note" id="timeSplit"></div>
+      <div class="note" id="calNote"></div>
     </div>
     <div class="sliced" id="sliced" hidden></div>
     <div class="tiles">
@@ -127,99 +150,137 @@ details .grid{padding-bottom:16px}
       <div class="bar" id="bar"></div>
       <div class="legend" id="legend" style="margin-top:8px"></div>
     </div>
+    <div class="note" id="gramSplit"></div>
     <div class="alert" id="warn" hidden></div>
-    <p class="note">Bu bir tahmindir, gerçek dilimleme değildir. Bambu Studio'nun süresinden çoğu modelde yüzde 20-25 kadar sapabilir. İlk baskından sonra "Diğer" bölümündeki düzeltme oranıyla kendi yazıcına göre ayarlayabilirsin.</p>
   </section>
 
   <section class="panel" id="modelPanel">
-    <h2>Model</h2>
-    <canvas id="view" aria-label="Modelin 3B görünümü. Sürükleyerek döndür, iki parmakla yakınlaştır."></canvas>
-    <div class="row">
-      <button class="btn" id="rotX" type="button">X ekseninde 90° çevir</button>
-      <button class="btn" id="rotY" type="button">Y ekseninde 90° çevir</button>
+    <div class="seg" role="group" aria-label="Görünüm">
+      <button type="button" id="viewModel" aria-pressed="true">Model</button>
+      <button type="button" id="viewSliced" aria-pressed="false">Dilimlenmiş</button>
     </div>
-    <dl class="facts">
-      <dt>Boyut</dt><dd id="fSize">–</dd>
-      <dt>Hacim</dt><dd id="fVol">–</dd>
-      <dt>Katman</dt><dd id="fLayers">–</dd>
-      <dt>Üçgen</dt><dd id="fTris">–</dd>
-    </dl>
-  </section>
-
-  <section class="panel" id="layerPanel">
-    <h2>Katman önizleme</h2>
+    <canvas id="view" aria-label="Modelin 3B görünümü. Sürükleyerek döndür, iki parmakla yakınlaştır."></canvas>
+    <div class="legend" id="filList" hidden></div>
+    <p class="note"><span id="fSize">–</span> · <span id="fVol">–</span> · <span id="fLayers">–</span><span id="fTris" hidden></span></p>
     <div class="note" id="lyrLabel">Katman –</div>
     <div class="stepper">
       <button class="btn" id="lyrDown" type="button" aria-label="Bir katman aşağı">−</button>
       <input type="range" id="lyr" min="1" max="100" step="1" value="50" aria-label="Katman">
       <button class="btn" id="lyrUp" type="button" aria-label="Bir katman yukarı">+</button>
     </div>
-    <canvas id="layerView" aria-label="Seçili katmanın yukarıdan görünümü"></canvas>
-    <div class="legend">
-      <span style="--c:#f28c28">Dış duvar</span><span style="--c:#3fbf5f">İç duvar</span><span style="--c:#d2553f">Dolgu</span>
-      <span style="--c:#8e6bd8">Dolu katman</span><span style="--c:#4aa8e8">Üst ve alt yüzey</span><span style="--c:#2bb5a8">Destek</span><span style="--c:#8a938f">Kenarlık</span>
+    <label class="check"><input type="checkbox" id="showSup" checked> Destekleri göster</label>
+    <div id="partsBox" class="parts">
+      <div class="note" id="partsInfo"></div>
+      <div id="partList" class="partlist"></div>
+      <div class="row">
+        <button class="btn" id="pDel" type="button">Sil</button>
+        <button class="btn" id="pOnly" type="button">Sadece bunu tut</button>
+        <button class="btn" id="pSplit" type="button">Parçalara ayır</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="rotX" type="button" aria-label="X ekseninde 90 derece çevir">X 90°</button>
+        <button class="btn" id="rotY" type="button" aria-label="Y ekseninde 90 derece çevir">Y 90°</button>
+        <button class="btn" id="rotZ" type="button" aria-label="Z ekseninde 90 derece çevir">Z 90°</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="mL" type="button" aria-label="5 mm sola taşı">←</button>
+        <button class="btn" id="mR" type="button" aria-label="5 mm sağa taşı">→</button>
+        <button class="btn" id="mU" type="button" aria-label="5 mm geriye taşı">↑</button>
+        <button class="btn" id="mD" type="button" aria-label="5 mm öne taşı">↓</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="pArrange" type="button">Tablaya diz</button>
+        <button class="btn" id="pUndo" type="button">Geri al</button>
+      </div>
+      <details id="cutBox">
+        <summary>Kes</summary>
+        <div class="grid">
+          <div class="field wide"><label for="cutZ">Kesme yüksekliği: <span id="cutVal">0</span> mm</label>
+            <input type="range" id="cutZ" min="0" max="10" step="0.2" value="5"></div>
+          <button class="btn" id="cutBelow" type="button">Altı kalsın</button>
+          <button class="btn" id="cutAbove" type="button">Üstü kalsın</button>
+          <p class="note wide">Kesim seçili parçaya uygulanır. Üst parça, kesik yüzü tablaya gelecek şekilde oturur.</p>
+        </div>
+      </details>
     </div>
-    <p class="note">Kaydırıcı 3B görünümü de aynı katmandan keser. Önizleme ayarlarına göre çizilen bir şemadır, yazıcıya gidecek gerçek yol değildir.</p>
+    <div id="sliceExtra" hidden>
+      <canvas id="layerView" aria-label="Seçili katmanın üstten görünümü"></canvas>
+      <div class="legend" style="margin-top:8px">
+        <span style="--c:#f28c28">Dış duvar</span><span style="--c:#3fbf5f">İç duvar</span><span style="--c:#d2553f">Dolgu</span>
+        <span style="--c:#8e6bd8">Dolu katman</span><span style="--c:#4aa8e8">Üst/alt yüzey</span><span style="--c:#2bb5a8">Destek</span><span style="--c:#8a938f">Kenarlık</span>
+      </div>
+    </div>
+    <p class="note" id="viewHint">Turuncu yüzeyler destek gerektirebilir.</p>
   </section>
 
   <section class="panel settings">
-    <h2>Baskı ayarları</h2>
-    <details open>
-      <summary>Hazır ayar ve kalite</summary>
+    <h2>Ayarlar</h2>
+    <div class="grid" style="padding-bottom:12px">
+      <div class="field wide"><label for="sPreset">Hazır ayar</label><select id="sPreset"></select></div>
+      <div class="field wide"><label for="sMat">Malzeme</label><select id="sMat"></select></div>
+      <div class="field wide"><label for="sInfill">Dolgu: <span id="infillVal">15</span>%</label>
+        <input type="range" id="sInfill" min="0" max="100" step="5" value="15"></div>
+      <div class="field"><label for="sWalls">Duvar sayısı</label>
+        <input type="number" id="sWalls" min="1" max="12" step="1" value="2" inputmode="numeric"></div>
+      <div class="field"><label for="sSupType">Destek türü</label>
+        <select id="sSupType"><option value="tree" selected>Ağaç</option><option value="normal">Normal</option></select></div>
+      <label class="check wide"><input type="checkbox" id="sSupport"> Destek kullan</label>
+    </div>
+    <details>
+      <summary>Kalite ve dayanım</summary>
       <div class="grid">
-        <div class="field wide"><label for="sPreset">Hazır ayar</label>
-          <select id="sPreset"><option value="">Özel</option><option value="0.08">0,08 mm Extra Fine</option><option value="0.12">0,12 mm Fine</option><option value="0.16">0,16 mm Optimal</option><option value="0.2" selected>0,20 mm Standard</option><option value="0.2s">0,20 mm Strength</option><option value="0.24">0,24 mm Draft</option><option value="0.28">0,28 mm Extra Draft</option></select></div>
         <div class="field"><label for="sLayer">Katman yüksekliği</label>
           <select id="sLayer"><option value="0.08">0,08 mm</option><option value="0.12">0,12 mm</option><option value="0.16">0,16 mm</option><option value="0.2" selected>0,20 mm</option><option value="0.24">0,24 mm</option><option value="0.28">0,28 mm</option></select></div>
-        <div class="field"><label for="sLw">Çizgi genişliği (mm)</label>
-          <input type="number" id="sLw" min="0.3" max="0.8" step="0.01" value="0.42" inputmode="decimal"></div>
-        <div class="field"><label for="sMat">Malzeme</label>
-          <select id="sMat"><option value="PLA" selected>PLA</option><option value="PETG">PETG</option><option value="ABS">ABS / ASA</option><option value="TPU">TPU</option></select></div>
-        <div class="field"><label for="sMode">Yazıcı hız modu</label>
-          <select id="sMode"><option value="0.5">Sessiz (%50)</option><option value="1" selected>Standart (%100)</option><option value="1.24">Sport (%124)</option><option value="1.66">Ludicrous (%166)</option></select></div>
-      </div>
-    </details>
-    <details open>
-      <summary>Dayanım</summary>
-      <div class="grid">
-        <div class="field wide"><label for="sInfill">Dolgu yoğunluğu: <span id="infillVal">15</span>%</label>
-          <input type="range" id="sInfill" min="0" max="100" step="5" value="15"></div>
         <div class="field"><label for="sPattern">Dolgu deseni</label>
           <select id="sPattern"><option value="grid" selected>Izgara</option><option value="lines">Çizgi</option><option value="triangles">Üçgen</option><option value="cubic">Kübik</option><option value="gyroid">Gyroid</option><option value="honeycomb">Bal peteği</option></select></div>
-        <div class="field"><label for="sWalls">Duvar sayısı</label>
-          <input type="number" id="sWalls" min="1" max="12" step="1" value="2" inputmode="numeric"></div>
         <div class="field"><label for="sTop">Üst katman sayısı</label>
           <input type="number" id="sTop" min="0" max="30" step="1" value="5" inputmode="numeric"></div>
         <div class="field"><label for="sBot">Alt katman sayısı</label>
           <input type="number" id="sBot" min="0" max="30" step="1" value="3" inputmode="numeric"></div>
+        <div class="field"><label for="sLw">Çizgi genişliği (mm)</label>
+          <input type="number" id="sLw" min="0.3" max="0.8" step="0.01" value="0.42" inputmode="decimal"></div>
+        <div class="field"><label for="sMode">Hız modu</label>
+          <select id="sMode"><option value="0.5">Sessiz</option><option value="1" selected>Standart</option><option value="1.24">Sport</option><option value="1.66">Ludicrous</option></select></div>
       </div>
     </details>
     <details>
       <summary>Destek ve kenarlık</summary>
       <div class="grid">
-        <label class="check wide"><input type="checkbox" id="sSupport"> Destek ekle (kaba hesap)</label>
         <div class="field"><label for="sAngle">Destek eşik açısı (°)</label>
           <input type="number" id="sAngle" min="5" max="80" step="5" value="30" inputmode="numeric"></div>
-        <div class="field"><label for="sBrim">Kenarlık genişliği (mm)</label>
+        <div class="field"><label for="sBrim">Kenarlık (mm)</label>
           <input type="number" id="sBrim" min="0" max="20" step="1" value="0" inputmode="decimal"></div>
+      </div>
+    </details>
+    <details>
+      <summary>Renkli baskı</summary>
+      <div class="grid">
+        <div class="field"><label for="sColors">Renk sayısı</label>
+          <select id="sColors"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
+        <div class="field"><label for="sColorPct">Renkli katman oranı (%)</label>
+          <input type="number" id="sColorPct" min="1" max="100" step="5" value="100" inputmode="numeric"></div>
+        <div class="field"><label for="sTChange">Değişim süresi (sn)</label>
+          <input type="number" id="sTChange" min="0" max="600" step="1" value="85" inputmode="numeric"></div>
+        <div class="field"><label for="sPurge">Değişim atığı (mm³)</label>
+          <input type="number" id="sPurge" min="0" max="2000" step="10" value="325" inputmode="numeric"></div>
+        <p class="note wide" id="colorNote"></p>
       </div>
     </details>
     <details>
       <summary>Hız ve ivme</summary>
       <div class="grid">
-        <div class="field"><label for="vOut">Dış duvar (mm/sn)</label><input type="number" id="vOut" min="10" max="500" step="10" value="200" inputmode="numeric"></div>
-        <div class="field"><label for="vIn">İç duvar (mm/sn)</label><input type="number" id="vIn" min="10" max="500" step="10" value="300" inputmode="numeric"></div>
-        <div class="field"><label for="vSparse">Dolgu (mm/sn)</label><input type="number" id="vSparse" min="10" max="500" step="10" value="270" inputmode="numeric"></div>
-        <div class="field"><label for="vSolid">Dolu katman (mm/sn)</label><input type="number" id="vSolid" min="10" max="500" step="10" value="250" inputmode="numeric"></div>
-        <div class="field"><label for="vTop">Üst yüzey (mm/sn)</label><input type="number" id="vTop" min="10" max="500" step="10" value="200" inputmode="numeric"></div>
+        <div class="field"><label for="vOut">Dış duvar (mm/sn)</label><input type="number" id="vOut" min="10" max="600" step="10" value="200" inputmode="numeric"></div>
+        <div class="field"><label for="vIn">İç duvar (mm/sn)</label><input type="number" id="vIn" min="10" max="600" step="10" value="300" inputmode="numeric"></div>
+        <div class="field"><label for="vSparse">Dolgu (mm/sn)</label><input type="number" id="vSparse" min="10" max="600" step="10" value="270" inputmode="numeric"></div>
+        <div class="field"><label for="vSolid">Dolu katman (mm/sn)</label><input type="number" id="vSolid" min="10" max="600" step="10" value="250" inputmode="numeric"></div>
+        <div class="field"><label for="vTop">Üst yüzey (mm/sn)</label><input type="number" id="vTop" min="10" max="600" step="10" value="200" inputmode="numeric"></div>
         <div class="field"><label for="vFirst">İlk katman (mm/sn)</label><input type="number" id="vFirst" min="5" max="300" step="5" value="50" inputmode="numeric"></div>
         <div class="field"><label for="vFirstInf">İlk katman dolgusu (mm/sn)</label><input type="number" id="vFirstInf" min="5" max="300" step="5" value="105" inputmode="numeric"></div>
-        <div class="field"><label for="vTravel">Boşta hareket (mm/sn)</label><input type="number" id="vTravel" min="50" max="1000" step="50" value="500" inputmode="numeric"></div>
+        <div class="field"><label for="vTravel">Boşta hareket (mm/sn)</label><input type="number" id="vTravel" min="50" max="1000" step="50" value="700" inputmode="numeric"></div>
         <div class="field"><label for="aNorm">İvme (mm/sn²)</label><input type="number" id="aNorm" min="500" max="20000" step="500" value="6000" inputmode="numeric"></div>
-        <div class="field"><label for="aOut">Dış duvar ivmesi (mm/sn²)</label><input type="number" id="aOut" min="500" max="20000" step="500" value="5000" inputmode="numeric"></div>
-        <div class="field"><label for="sFlow">Maks. hacimsel hız (mm³/sn)</label><input type="number" id="sFlow" min="1" max="40" step="0.5" value="21" inputmode="decimal"></div>
-        <div class="field"><label for="sMinLayer">En kısa katman süresi (sn)</label><input type="number" id="sMinLayer" min="0" max="60" step="1" value="4" inputmode="numeric"></div>
-        <p class="note wide">Hızlar hacimsel hız sınırını aşarsa yazıcı sınırı uygular; ince katmanda sınır daha geç devreye girer.</p>
+        <div class="field"><label for="aOut">Dış duvar ivmesi</label><input type="number" id="aOut" min="500" max="20000" step="500" value="5000" inputmode="numeric"></div>
+        <div class="field"><label for="sFlow">Maks. akış (mm³/sn)</label><input type="number" id="sFlow" min="1" max="40" step="0.5" value="21" inputmode="decimal"></div>
+        <div class="field"><label for="sMinLayer">En kısa katman (sn)</label><input type="number" id="sMinLayer" min="0" max="60" step="1" value="6" inputmode="numeric"></div>
       </div>
     </details>
     <details>
@@ -229,13 +290,26 @@ details .grid{padding-bottom:16px}
           <input type="number" id="sCopies" min="1" max="100" step="1" value="1" inputmode="numeric"></div>
         <div class="field"><label for="sScale">Ölçek (%)</label>
           <input type="number" id="sScale" min="1" max="10000" step="1" value="100" inputmode="decimal"></div>
-        <div class="field"><label for="sPrice">Filament fiyatı (₺/kg)</label>
-          <input type="number" id="sPrice" min="0" step="10" value="" placeholder="örn. 700" inputmode="decimal"></div>
-        <div class="field"><label for="sCorr">Düzeltme (%)</label>
+        <div class="field"><label for="sPrice">Filament (₺/kg)</label>
+          <input type="number" id="sPrice" min="0" step="10" value="" placeholder="700" inputmode="decimal"></div>
+        <div class="field"><label for="sCorr">Elle düzeltme (%)</label>
           <input type="number" id="sCorr" min="50" max="200" step="1" value="100" inputmode="numeric"></div>
-        <label class="check wide"><input type="checkbox" id="sPrep" checked> Isınma ve tabla ölçümünü dahil et (yaklaşık 6 dk)</label>
-        <p class="note wide">Gerçek baskı tahminden uzun sürdüyse düzeltmeyi artır. Örnek: tahmin 100 dk, gerçek 115 dk ise 115 yaz.</p>
-        <button class="btn wide" id="resetBtn" type="button">Ayarları varsayılana döndür</button>
+        <label class="check wide"><input type="checkbox" id="sPrep" checked> <span id="prepLabel">Hazırlık süresini dahil et</span></label>
+        <button class="btn wide" id="resetBtn" type="button">Ayarları sıfırla</button>
+      </div>
+    </details>
+    <details id="calBox">
+      <summary>Bambu Studio ile karşılaştır</summary>
+      <div class="grid">
+        <p class="note wide">Aynı ayarlarla Bambu Studio'da dilimle; "Model printing time" ve gramı yaz, kaydet. Uygulama bu kayıtlarla kendini ayarlar. Bambu'nun dilimlenmiş .3mf dosyasını açarsan bilgiler kendiliğinden okunur.</p>
+        <div class="field"><label for="calH">Saat</label><input type="number" id="calH" min="0" max="200" step="1" placeholder="0" inputmode="numeric"></div>
+        <div class="field"><label for="calM">Dakika</label><input type="number" id="calM" min="0" max="59" step="1" placeholder="31" inputmode="numeric"></div>
+        <div class="field"><label for="calS">Saniye</label><input type="number" id="calS" min="0" max="59" step="1" placeholder="58" inputmode="numeric"></div>
+        <div class="field"><label for="calG">Gram</label><input type="number" id="calG" min="0" step="0.01" placeholder="19,88" inputmode="decimal"></div>
+        <button class="btn wide" id="calSave" type="button">Bambu sonucunu kaydet</button>
+        <div class="wide" id="calList"></div>
+        <button class="btn wide" id="calCopy" type="button">Verileri kopyala (Claude'a göndermek için)</button>
+        <textarea class="wide" id="calText" rows="6" readonly hidden style="font:12px ui-monospace,monospace;width:100%;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:8px"></textarea>
       </div>
     </details>
   </section>
@@ -244,13 +318,6 @@ details .grid{padding-bottom:16px}
 <script>
 /*CORE-START*/
 const Core = (() => {
-  const MATS = {
-    PLA:  {flow:21,  dens:1.24, minLayer:4},
-    PETG: {flow:13,  dens:1.27, minLayer:8},
-    ABS:  {flow:16,  dens:1.05, minLayer:3},
-    TPU:  {flow:3.6, dens:1.22, minLayer:8}
-  };
-
   function parseSTL(buf){
     const dv = new DataView(buf);
     if (buf.byteLength >= 84){
@@ -297,11 +364,17 @@ const Core = (() => {
       if (!want(name.toLowerCase())) continue;
       const ds = lo + 30 + dv.getUint16(lo+26, true) + dv.getUint16(lo+28, true);
       const data = u8.subarray(ds, ds + csize);
+      const max = name.toLowerCase().endsWith('.gcode') ? 262144 : Infinity;
       let raw;
-      if (method === 0) raw = data;
+      if (method === 0) raw = max < Infinity ? data.subarray(0, max) : data;
       else if (method === 8){
         const s = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-        raw = new Uint8Array(await new Response(s).arrayBuffer());
+        if (max < Infinity){
+          const rd = s.getReader(), parts = []; let n = 0;
+          while (n < max){ const r = await rd.read(); if (r.done) break; parts.push(r.value); n += r.value.length; }
+          try { rd.cancel(); } catch (e) {}
+          raw = new Uint8Array(n); let o2 = 0; for (const q of parts){ raw.set(q, o2); o2 += q.length; }
+        } else raw = new Uint8Array(await new Response(s).arrayBuffer());
       } else continue;
       files[name.replace(/^\//, '')] = td.decode(raw);
     }
@@ -320,14 +393,20 @@ const Core = (() => {
   const UNITS = {micron:0.001, millimeter:1, centimeter:10, inch:25.4, foot:304.8, meter:1000};
 
   async function parse3MF(buf){
-    const files = await unzip(buf, n => n.endsWith('.model') || n.endsWith('slice_info.config'));
-    let sliced = null;
+    const files = await unzip(buf, n => n.endsWith('.model') || n.endsWith('slice_info.config') || n.endsWith('project_settings.config') || /plate_\d+\.gcode$/.test(n));
+    let sliced = null, settings = null, gc = null;
+    for (const n in files){
+      const l = n.toLowerCase();
+      if (l.endsWith('project_settings.config')){ try { settings = JSON.parse(files[n]); } catch (e) {} }
+      else if (/plate_1\.gcode$/.test(l) || (!gc && l.endsWith('.gcode'))){ const g = gcodeInfo(files[n]); if (g) gc = g; }
+    }
     for (const n in files) if (n.toLowerCase().endsWith('slice_info.config')){
       let t = 0, w = 0, m; const rp = /key="prediction"\s+value="([\d.]+)"/g, rw = /key="weight"\s+value="([\d.]+)"/g;
       while ((m = rp.exec(files[n]))) t += +m[1];
       while ((m = rw.exec(files[n]))) w += +m[1];
       if (t > 0) sliced = {time:t, grams:w};
     }
+    if (gc) sliced = Object.assign({}, sliced || {}, {time:gc.time || (sliced && sliced.time), print:gc.print, grams:gc.grams || (sliced && sliced.grams) || 0});
     const objs = {}; let root = null; let items = [];
     for (const path in files){
       if (!path.toLowerCase().endsWith('.model')) continue;
@@ -335,7 +414,7 @@ const Core = (() => {
       const head = /<model\b[^>]*>/.exec(txt); const unit = UNITS[(head && attr(head[0], 'unit')) || 'millimeter'] || 1;
       const ro = /<object\b([^>]*)>([\s\S]*?)<\/object>/g; let m;
       while ((m = ro.exec(txt))){
-        const id = attr(m[1], 'id'); const body = m[2]; const o = {unit, comps:[], verts:null, tris:null};
+        const id = attr(m[1], 'id'); const body = m[2]; const o = {unit, comps:[], verts:null, tris:null, name:attr(m[1], 'name')};
         const va = [], ta = []; let k;
         const rv = /<vertex\s+x="([^"]+)"\s+y="([^"]+)"\s+z="([^"]+)"/g;
         while ((k = rv.exec(body))) va.push(+k[1], +k[2], +k[3]);
@@ -365,19 +444,28 @@ const Core = (() => {
       }
       for (const c of o.comps) emit(c.path, c.id, compose(c.t, M), depth+1);
     }
-    if (items.length) for (const it of items) emit(it.path, it.id, it.t, 0);
-    else for (const key in objs){ const i = key.lastIndexOf('|'); if (objs[key].tris) emit(key.slice(0, i), key.slice(i+1), ID, 9); }
-    return {pos:new Float32Array(out), sliced};
+    // one object per build item, so the parts can be handled separately
+    const parts = [];
+    const take = (name) => { if (out.length >= 9) parts.push({name, pos:new Float32Array(out)}); out.length = 0; };
+    if (items.length) for (const it of items){ emit(it.path, it.id, it.t, 0); const o = objs[it.path + '|' + it.id]; take(o && o.name); }
+    else for (const key in objs){ const i = key.lastIndexOf('|'); if (objs[key].tris){ emit(key.slice(0, i), key.slice(i+1), ID, 9); take(objs[key].name); } }
+    let n = 0; for (const p of parts) n += p.pos.length;
+    const all = new Float32Array(n); let o2 = 0; for (const p of parts){ all.set(p.pos, o2); o2 += p.pos.length; }
+    return {pos:all, parts, sliced, settings};
   }
 
-  function parseGcodeHeader(buf){
-    const txt = new TextDecoder().decode(new Uint8Array(buf, 0, Math.min(buf.byteLength, 200000)));
-    const m = /total estimated time:\s*([^;\n\r]+)/i.exec(txt) || /estimated printing time[^=:]*[=:]\s*([^;\n\r]+)/i.exec(txt);
-    if (!m) return null;
-    let s = 0; const r = /(\d+)\s*([dhms])/g; let k;
-    while ((k = r.exec(m[1]))) s += +k[1] * ({d:86400, h:3600, m:60, s:1})[k[2]];
+  function hms(str){ let s = 0; const r = /(\d+(?:\.\d+)?)\s*([dhms])/g; let k; while ((k = r.exec(str))) s += +k[1] * ({d:86400, h:3600, m:60, s:1})[k[2]]; return s; }
+  // Bambu/Orca header: "; model printing time: 31m 58s; total estimated time: 45m 33s"
+  function gcodeInfo(txt){
+    const mp = /model printing time:\s*([^;\n\r]+)/i.exec(txt);
+    const mt = /total estimated time:\s*([^;\n\r]+)/i.exec(txt) || /estimated printing time[^=:]*[=:]\s*([^;\n\r]+)/i.exec(txt);
+    if (!mp && !mt) return null;
     const w = /total filament weight[^:]*:\s*([\d.]+)/i.exec(txt) || /filament used \[g\]\s*=\s*([\d.]+)/i.exec(txt);
-    return s > 0 ? {time:s, grams:w ? +w[1] : 0} : null;
+    const time = mt ? hms(mt[1]) : 0, print = mp ? hms(mp[1]) : 0;
+    return time > 0 || print > 0 ? {time: time || print, print: print || null, grams: w ? +w[1] : 0} : null;
+  }
+  function parseGcodeHeader(buf){
+    return gcodeInfo(new TextDecoder().decode(new Uint8Array(buf, 0, Math.min(buf.byteLength, 262144))));
   }
 
   // Centre on the plate, drop to z=0; returns bounding size.
@@ -389,170 +477,839 @@ const Core = (() => {
     return [b[0]-a[0], b[1]-a[1], b[2]-a[2]];
   }
 
-  function stats(pos, cosT){
-    if (cosT === undefined) cosT = 0.866;
-    let vol=0, top=0, bot=0, ovA=0, supVol=0; const ov = [];
-    for (let i=0;i<pos.length;i+=9){
-      const ax=pos[i],ay=pos[i+1],az=pos[i+2], bx=pos[i+3],by=pos[i+4],bz=pos[i+5], cx=pos[i+6],cy=pos[i+7],cz=pos[i+8];
-      const ux=bx-ax,uy=by-ay,uz=bz-az, vx=cx-ax,vy=cy-ay,vz=cz-az;
-      const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx;
-      vol += (ax*(by*cz-bz*cy) + ay*(bz*cx-bx*cz) + az*(bx*cy-by*cx))/6;
-      const proj = nz/2;
-      if (proj > 0) top += proj; else {
-        bot -= proj;
-        const len = Math.hypot(nx,ny,nz), zm = Math.min(az,bz,cz);
-        if (len > 0 && nz/len < -cosT && zm > 0.3){ ovA -= proj; supVol += -proj*(az+bz+cz)/3; if (ov.length < 7*80000) ov.push(ax,ay,bx,by,cx,cy,zm); }
-      }
-    }
-    // sort overhang triangles by height, highest first
-    const n = ov.length/7, idx = Array.from({length:n}, (_, i) => i).sort((p, q) => ov[q*7+6] - ov[p*7+6]);
-    const ovTris = new Float32Array(n*7);
-    for (let i=0;i<n;i++) for (let j=0;j<7;j++) ovTris[i*7+j] = ov[idx[i]*7+j];
-    return {vol:Math.abs(vol), top, bot, ovA, supVol, ovTris};
-  }
-
-  function slice(pos, h, H){
-    const N = Math.max(1, Math.ceil(H/h - 1e-6));
-    const A = new Float64Array(N), P = new Float64Array(N);
-    const z = [0,0,0];
-    for (let i=0;i<pos.length;i+=9){
-      z[0]=pos[i+2]; z[1]=pos[i+5]; z[2]=pos[i+8];
-      const zmin = Math.min(z[0],z[1],z[2]), zmax = Math.max(z[0],z[1],z[2]);
-      const k0 = Math.max(0, Math.ceil(zmin/h - 0.5)), k1 = Math.min(N-1, Math.floor(zmax/h - 0.5));
-      if (k1 < k0) continue;
-      const ux=pos[i+3]-pos[i],uy=pos[i+4]-pos[i+1],uz=z[1]-z[0], vx=pos[i+6]-pos[i],vy=pos[i+7]-pos[i+1],vz=z[2]-z[0];
-      const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz;
-      for (let k=k0;k<=k1;k++){
-        const zp = (k+0.5)*h;
-        const s0 = z[0]>zp, s1 = z[1]>zp, s2 = z[2]>zp;
-        const c = s0+s1+s2; if (c===0 || c===3) continue;
-        const lone = (s0!==s1 && s0!==s2) ? 0 : (s1!==s0 && s1!==s2) ? 1 : 2;
-        const o1 = (lone+1)%3, o2 = (lone+2)%3;
-        const lx=pos[i+lone*3], ly=pos[i+lone*3+1], lz=z[lone];
-        const t1=(zp-lz)/(z[o1]-lz), t2=(zp-lz)/(z[o2]-lz);
-        let px=lx+(pos[i+o1*3]-lx)*t1, py=ly+(pos[i+o1*3+1]-ly)*t1;
-        let qx=lx+(pos[i+o2*3]-lx)*t2, qy=ly+(pos[i+o2*3+1]-ly)*t2;
-        const dx=qx-px, dy=qy-py;
-        if (dx*ny - dy*nx < 0){ const tx=px, ty=py; px=qx; py=qy; qx=tx; qy=ty; }
-        A[k] += 0.5*(px*qy - qx*py);
-        P[k] += Math.hypot(dx, dy);
-      }
-    }
-    for (let k=0;k<N;k++) A[k] = Math.abs(A[k]);
-    return {h, N, A, P};
-  }
-
-  // Oriented outline segments [px,py,qx,qy,...] for layers ka..kb.
-  function sliceSegs(pos, h, N, ka, kb){
-    const out = []; for (let k=ka;k<=kb;k++) out.push([]);
-    const z = [0,0,0];
-    for (let i=0;i<pos.length;i+=9){
-      z[0]=pos[i+2]; z[1]=pos[i+5]; z[2]=pos[i+8];
-      const zmin = Math.min(z[0],z[1],z[2]), zmax = Math.max(z[0],z[1],z[2]);
-      const k0 = Math.max(ka, Math.ceil(zmin/h - 0.5)), k1 = Math.min(kb, Math.floor(zmax/h - 0.5));
-      if (k1 < k0) continue;
-      const ux=pos[i+3]-pos[i],uy=pos[i+4]-pos[i+1],uz=z[1]-z[0], vx=pos[i+6]-pos[i],vy=pos[i+7]-pos[i+1],vz=z[2]-z[0];
-      const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz;
-      for (let k=k0;k<=k1;k++){
-        const zp = (k+0.5)*h;
-        const s0 = z[0]>zp, s1 = z[1]>zp, s2 = z[2]>zp;
-        const c = s0+s1+s2; if (c===0 || c===3) continue;
-        const lone = (s0!==s1 && s0!==s2) ? 0 : (s1!==s0 && s1!==s2) ? 1 : 2;
-        const o1 = (lone+1)%3, o2 = (lone+2)%3;
-        const lx=pos[i+lone*3], ly=pos[i+lone*3+1], lz=z[lone];
-        const t1=(zp-lz)/(z[o1]-lz), t2=(zp-lz)/(z[o2]-lz);
-        let px=lx+(pos[i+o1*3]-lx)*t1, py=ly+(pos[i+o1*3+1]-ly)*t1;
-        let qx=lx+(pos[i+o2*3]-lx)*t2, qy=ly+(pos[i+o2*3+1]-ly)*t2;
-        const dx=qx-px, dy=qy-py;
-        if (dx*dx + dy*dy < 1e-10) continue;
-        if (dx*ny - dy*nx < 0) out[k-ka].push(qx,qy,px,py); else out[k-ka].push(px,py,qx,qy);
-      }
+  // ===================== streaming 3MF reader =====================
+  // Reads big Bambu/Prusa project files piece by piece: meshes, painted colours, part filaments and plates.
+  async function zipEntries(buf){
+    const dv = new DataView(buf), u8 = new Uint8Array(buf);
+    let e = buf.byteLength - 22;
+    while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+    if (e < 0) throw new Error('zip');
+    const count = dv.getUint16(e+10, true); let o = dv.getUint32(e+16, true);
+    const td = new TextDecoder(), out = [];
+    for (let i=0;i<count;i++){
+      if (dv.getUint32(o, true) !== 0x02014b50) break;
+      const method = dv.getUint16(o+10, true), csize = dv.getUint32(o+20, true), usize = dv.getUint32(o+24, true);
+      const nl = dv.getUint16(o+28, true), el = dv.getUint16(o+30, true), cl = dv.getUint16(o+32, true), lo = dv.getUint32(o+42, true);
+      const name = td.decode(u8.subarray(o+46, o+46+nl)).replace(/^\//, '');
+      o += 46 + nl + el + cl;
+      const ds = lo + 30 + dv.getUint16(lo+26, true) + dv.getUint16(lo+28, true);
+      out.push({name, method, usize, data:u8.subarray(ds, ds + csize)});
     }
     return out;
   }
+  function entryStream(en){
+    if (en.method === 0){ let done = false; return {read: async () => done ? {done:true} : (done = true, {done:false, value:en.data}), cancel(){}}; }
+    return new Blob([en.data]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+  }
+  async function entryText(en, max){
+    const rd = entryStream(en), parts = []; let n = 0;
+    while (n < (max || Infinity)){ const r = await rd.read(); if (r.done) break; parts.push(r.value); n += r.value.length; }
+    try { rd.cancel && rd.cancel(); } catch (e) {}
+    const all = new Uint8Array(n); let o = 0; for (const q of parts){ all.set(q, o); o += q.length; }
+    return new TextDecoder().decode(all);
+  }
+  // growable typed arrays
+  function GA(T, n){ this.a = new T(n || 1024); this.n = 0; }
+  GA.prototype.push = function(v){ if (this.n === this.a.length){ const b = new this.a.constructor(this.a.length*2); b.set(this.a); this.a = b; } this.a[this.n++] = v; };
+  GA.prototype.done = function(){ return this.a.subarray(0, this.n); };
 
-  // Join segments end to start into closed outlines.
+  // number from ASCII bytes
+  function num(b, s, e){
+    let i = s, neg = false, v = 0, f = 0, d = 1;
+    if (b[i] === 45){ neg = true; i++; } else if (b[i] === 43) i++;
+    for (; i<e; i++){ const c = b[i]; if (c >= 48 && c <= 57) v = v*10 + (c - 48); else break; }
+    if (b[i] === 46){ i++; for (; i<e; i++){ const c = b[i]; if (c >= 48 && c <= 57){ f = f*10 + (c - 48); d *= 10; } else break; } }
+    let r = v + f/d;
+    if (b[i] === 101 || b[i] === 69){ i++; let en = false, x = 0; if (b[i] === 45){ en = true; i++; } else if (b[i] === 43) i++; for (; i<e; i++){ const c = b[i]; if (c >= 48 && c <= 57) x = x*10 + (c-48); else break; } r *= Math.pow(10, en ? -x : x); }
+    return neg ? -r : r;
+  }
+  // painted colour of a triangle: the state covering most of its area (Prusa/Bambu TriangleSelector format, read from the end)
+  const _pw = new Float64Array(32);
+  function paintState(b, s, e){
+    if (e - s === 1){ const c = b[s], code = c <= 57 ? c - 48 : (c | 32) - 87; if ((code & 3) === 0 && (code >> 2) < 3) return code >> 2; }
+    _pw.fill(0); let p = e - 1;
+    const nib = () => { if (p < s) return 0; const c = b[p--]; return c <= 57 ? c - 48 : (c | 32) - 87; };
+    const node = (w, depth) => {
+      const code = nib(), split = code & 3;
+      if (split === 0 || depth > 12){ let st = code >> 2; if (st === 3) st = nib() + 3; if (st < 32) _pw[st] += w; return; }
+      const k = split + 1; for (let i=0;i<k;i++) node(w/k, depth+1);
+    };
+    node(1, 0);
+    let best = 0; for (let i=1;i<32;i++) if (_pw[i] > _pw[best]) best = i;
+    return best;
+  }
+  const B = s => Uint8Array.from(s, c => c.charCodeAt(0));
+  const T_OBJECT = B('object'), T_VERTEX = B('vertex'), T_TRI = B('triangle'), T_COMP = B('component'), T_ITEM = B('item'), T_MODEL = B('model');
+  function isName(b, s, e, t){ if (e - s !== t.length) return false; for (let i=0;i<t.length;i++) if (b[s+i] !== t[i]) return false; return true; }
+
+  // one .model file, streamed; fills objs[path|id]
+  async function parseModelStream(en, objs, items, onProgress){
+    const path = en.name, rd = entryStream(en), td = new TextDecoder();
+    let left = new Uint8Array(0), cur = null, unit = 1, got = 0;
+    const UNITS = {micron:0.001, millimeter:1, centimeter:10, inch:25.4, foot:304.8, meter:1000};
+    const attrs = (b, i, e, cb) => {
+      while (i < e){
+        while (i < e && (b[i] === 32 || b[i] === 10 || b[i] === 13 || b[i] === 9)) i++;
+        const ks = i; while (i < e && b[i] !== 61 && b[i] !== 32 && b[i] !== 47 && b[i] !== 62) i++;
+        const ke = i; if (b[i] !== 61){ i++; continue; } i++;
+        const q = b[i]; if (q !== 34 && q !== 39){ continue; } i++;
+        const vs = i; while (i < e && b[i] !== q) i++;
+        cb(ks, ke, vs, i); i++;
+      }
+    };
+    const key = (b, ks, ke) => td.decode(b.subarray(ks, ke));
+    const val = (b, vs, ve) => td.decode(b.subarray(vs, ve));
+    for (;;){
+      const r = await rd.read(); if (r.done) break;
+      got += r.value.length; if (onProgress) onProgress(r.value.length);
+      let b;
+      if (left.length){ b = new Uint8Array(left.length + r.value.length); b.set(left); b.set(r.value, left.length); } else b = r.value;
+      let i = 0, n = b.length, keep = n;
+      while (i < n){
+        if (b[i] !== 60){ i++; continue; }
+        let j = i + 1; while (j < n && b[j] !== 62) j++;
+        if (j >= n){ keep = i; break; }
+        // tag b[i+1 .. j)
+        let ns = i + 1, close = false; if (b[ns] === 47){ close = true; ns++; }
+        let ne = ns; while (ne < j && b[ne] !== 32 && b[ne] !== 47 && b[ne] !== 10 && b[ne] !== 13 && b[ne] !== 9) ne++;
+        // strip namespace prefix (p:, m:)
+        let nss = ns; for (let k=ns;k<ne;k++) if (b[k] === 58) nss = k + 1;
+        if (isName(b, nss, ne, T_VERTEX) && cur){
+          let x = 0, y = 0, z = 0;
+          attrs(b, ne, j, (ks, ke, vs, ve) => { const c = b[ks]; if (ke - ks === 1){ if (c === 120) x = num(b, vs, ve); else if (c === 121) y = num(b, vs, ve); else if (c === 122) z = num(b, vs, ve); } });
+          cur.v.push(x*unit); cur.v.push(y*unit); cur.v.push(z*unit);
+        } else if (isName(b, nss, ne, T_TRI) && cur){
+          let a = 0, c2 = 0, d = 0, pc = 0;
+          attrs(b, ne, j, (ks, ke, vs, ve) => {
+            if (ke - ks === 2 && b[ks] === 118){ const w = b[ks+1]; if (w === 49) a = num(b, vs, ve); else if (w === 50) c2 = num(b, vs, ve); else if (w === 51) d = num(b, vs, ve); }
+            else if (ke - ks >= 11 && b[ke-5] === 99 && b[ke-1] === 114 && b[ks] === 112){ if (ve > vs) pc = paintState(b, vs, ve); }   // paint_color
+            else if (ke - ks === 10 && b[ks] === 109 && b[ks+1] === 109){ if (ve > vs && !pc) pc = paintState(b, vs, ve); }          // mmu_segmentation (Prusa)
+          });
+          cur.t.push(a); cur.t.push(c2); cur.t.push(d); cur.p.push(pc); if (pc) cur.painted = true;
+        } else if (isName(b, nss, ne, T_OBJECT)){
+          if (close){ if (cur){ objs[path + '|' + cur.id] = {unit:1, name:cur.name, verts:cur.v.done(), tris:cur.t.done(), paint:cur.painted ? cur.p.done() : null, comps:cur.comps}; } cur = null; }
+          else {
+            const o = {id:'', name:null, v:new GA(Float32Array, 3072), t:new GA(Uint32Array, 3072), p:new GA(Uint8Array, 1024), comps:[], painted:false};
+            attrs(b, ne, j, (ks, ke, vs, ve) => { const k = key(b, ks, ke); if (k === 'id') o.id = val(b, vs, ve); else if (k === 'name') o.name = val(b, vs, ve); });
+            cur = o;
+            if (b[j-1] === 47){ objs[path + '|' + o.id] = {unit:1, name:o.name, verts:new Float32Array(0), tris:new Uint32Array(0), paint:null, comps:[]}; cur = null; }
+          }
+        } else if (isName(b, nss, ne, T_COMP) && cur && !close){
+          const c = {id:'', path, t:null};
+          attrs(b, ne, j, (ks, ke, vs, ve) => { const k = key(b, ks, ke); if (k === 'objectid') c.id = val(b, vs, ve); else if (k === 'p:path' || k === 'path') c.path = val(b, vs, ve).replace(/^\//, ''); else if (k === 'transform') c.t = val(b, vs, ve); });
+          cur.comps.push(c);
+        } else if (isName(b, nss, ne, T_ITEM) && !close){
+          const it = {id:'', path, t:null, printable:true};
+          attrs(b, ne, j, (ks, ke, vs, ve) => { const k = key(b, ks, ke); if (k === 'objectid') it.id = val(b, vs, ve); else if (k === 'p:path' || k === 'path') it.path = val(b, vs, ve).replace(/^\//, ''); else if (k === 'transform') it.t = val(b, vs, ve); else if (k === 'printable') it.printable = val(b, vs, ve) !== '0'; });
+          items.push(it);
+        } else if (isName(b, nss, ne, T_MODEL) && !close){
+          attrs(b, ne, j, (ks, ke, vs, ve) => { if (key(b, ks, ke) === 'unit') unit = UNITS[val(b, vs, ve)] || 1; });
+        }
+        i = j + 1;
+      }
+      left = keep < n ? b.slice(keep) : new Uint8Array(0);
+    }
+  }
+  const tf12 = s => { if (!s) return ID; const a = s.trim().split(/\s+/).map(Number); return a.length === 12 && a.every(isFinite) ? a : ID; };
+
+  // whole project: parts with per-triangle filament, plates, filament colours, settings, sliced info
+  async function read3MF(buf, onProgress){
+    const ents = await zipEntries(buf), by = {};
+    for (const e of ents) by[e.name.toLowerCase()] = e;
+    const get = async (n, max) => { const e = by[n.toLowerCase()]; return e ? entryText(e, max) : null; };
+    let settings = null; try { const t = await get('Metadata/project_settings.config'); if (t) settings = JSON.parse(t); } catch (e) {}
+    const ms = await get('Metadata/model_settings.config');
+    let sliced = null;
+    const si = await get('Metadata/slice_info.config');
+    if (si){ let t = 0, w = 0, m; const rp = /key="prediction"\s+value="([\d.]+)"/g, rw = /key="weight"\s+value="([\d.]+)"/g; while ((m = rp.exec(si))) t += +m[1]; while ((m = rw.exec(si))) w += +m[1]; if (t > 0) sliced = {time:t, grams:w}; }
+    const ge = ents.find(e => /plate_1\.gcode$/i.test(e.name)) || ents.find(e => /\.gcode$/i.test(e.name));
+    if (ge){ const g = gcodeInfo(await entryText(ge, 262144)); if (g) sliced = Object.assign({}, sliced || {}, {time:g.time || (sliced && sliced.time), print:g.print, grams:g.grams || (sliced && sliced.grams) || 0}); }
+    // meshes: main model first, then the object files it points to
+    const models = ents.filter(e => /\.model$/i.test(e.name));
+    const total = models.reduce((s, e) => s + (e.usize || e.data.length*5), 0); let done = 0;
+    const objs = {}, items = [];
+    const main = models.find(e => /3dmodel\.model$/i.test(e.name)) || models[0];
+    const ordered = [main].concat(models.filter(e => e !== main));
+    for (const e of ordered) if (e) await parseModelStream(e, objs, e === main ? items : [], n => { done += n; if (onProgress) onProgress(Math.min(0.99, done/total)); });
+    // filament per object / part, plates
+    const objExt = {}, partExt = {}, plateOf = {}, objName = {};
+    if (ms){
+      const ro = /<object id="(\d+)">([\s\S]*?)<\/object>/g; let m;
+      while ((m = ro.exec(ms))){
+        const body = m[2], head = body.split('<part')[0];
+        const ex = /key="extruder" value="(\d+)"/.exec(head); if (ex) objExt[m[1]] = +ex[1];
+        const nm = /key="name" value="([^"]*)"/.exec(head); if (nm) objName[m[1]] = nm[1];
+        const rp = /<part id="(\d+)"[^>]*>([\s\S]*?)<\/part>/g; let p;
+        while ((p = rp.exec(body))){ const pe = /key="extruder" value="(\d+)"/.exec(p[2]); if (pe) partExt[m[1] + '|' + p[1]] = +pe[1]; }
+      }
+      const rpl = /<plate>([\s\S]*?)<\/plate>/g; let pl;
+      while ((pl = rpl.exec(ms))){
+        const id = /key="plater_id" value="(\d+)"/.exec(pl[1]); if (!id) continue;
+        const ri = /key="object_id" value="(\d+)"/g; let q; while ((q = ri.exec(pl[1]))) plateOf[q[1]] = +id[1];
+      }
+    }
+    const parts = [];
+    for (const it of items){
+      if (!it.printable) continue;
+      const P = new GA(Float32Array, 9*1024), E = new GA(Uint8Array, 1024), base = objExt[it.id] || 1;
+      const emit = (path, id, M, depth, ext) => {
+        const o = objs[path + '|' + id]; if (!o || depth > 8) return;
+        const v = o.verts, t = o.tris, pt = o.paint;
+        for (let k=0;k<t.length;k+=3){
+          for (let q=0;q<3;q++){ const a = t[k+q]*3, x = v[a], y = v[a+1], z = v[a+2];
+            P.push(x*M[0]+y*M[3]+z*M[6]+M[9]); P.push(x*M[1]+y*M[4]+z*M[7]+M[10]); P.push(x*M[2]+y*M[5]+z*M[8]+M[11]); }
+          const st = pt ? pt[k/3] : 0; E.push(st || ext);
+        }
+        o.comps.forEach((c, ci) => emit(c.path, c.id, compose(tf12(c.t), M), depth+1, partExt[it.id + '|' + (ci+1)] || partExt[it.id + '|' + c.id] || ext));
+      };
+      emit(it.path, it.id, tf12(it.t), 0, base);
+      if (P.n >= 9){
+        const pos = P.done(), ext = E.done();
+        let multi = false; for (let k=1;k<ext.length;k++) if (ext[k] !== ext[0]){ multi = true; break; }
+        parts.push({name:objName[it.id] || (objs[it.path + '|' + it.id] || {}).name || null, pos:new Float32Array(pos), ext:new Uint8Array(ext), multi, plate:plateOf[it.id] || 1});
+      }
+    }
+    // the meshes are copied into the parts; drop the indexed versions
+    for (const k in objs) delete objs[k];
+    const fil = settings ? {
+      colours:(settings.filament_colour || []).slice(), ids:(settings.filament_settings_id || []).slice(),
+      density:(settings.filament_density || []).map(Number), flush:(settings.flush_volumes_matrix || []).map(Number), mult:+(settings.flush_multiplier || [1])[0] || 1,
+      tower:settings.enable_prime_tower === '1' || settings.enable_prime_tower === true, towerW:+settings.prime_tower_width || 35
+    } : null;
+    const plates = [...new Set(parts.map(p => p.plate))].sort((a, b) => a - b);
+    return {parts, plates, fil, settings, sliced};
+  }
+  // ===================== multi-colour plan =====================
+  // Which filaments appear on each layer, then the change sequence, purge and prime tower.
+  function colorLayers(parts, h, h0, N){
+    const sets = new Uint32Array(N);
+    for (const p of parts){
+      const pos = p.pos, ext = p.ext;
+      for (let i=0, t=0;i<pos.length;i+=9, t++){
+        const e = ext ? ext[t] : 1; if (!e) continue;
+        const z0 = Math.min(pos[i+2], pos[i+5], pos[i+8]), z1 = Math.max(pos[i+2], pos[i+5], pos[i+8]);
+        const k0 = Math.max(0, Math.floor((z0-h0)/h + 0.5)), k1 = Math.min(N-1, Math.ceil((z1-h0)/h + 0.5));
+        const bit = 1 << (e-1);
+        for (let k=k0;k<=k1;k++) sets[k] |= bit;
+      }
+    }
+    return sets;
+  }
+  function colorPlan(sets, flush, nFil, mult){
+    const F = (a, b) => flush && flush.length >= nFil*nFil ? (flush[(a-1)*nFil + (b-1)] || 0)*(mult || 1) : 0;
+    let last = 0, changes = 0, purge = 0, lastChange = -1;
+    const ids = m => { const r = []; for (let e=1;e<=32;e++) if (m & (1 << (e-1))) r.push(e); return r; };
+    const perLayer = new Uint16Array(sets.length);
+    for (let k=0;k<sets.length;k++){
+      let S = ids(sets[k]); if (!S.length) continue;
+      const nextS = k+1 < sets.length ? sets[k+1] : 0;
+      // start with what is loaded, end with something the next layer needs
+      const order = [];
+      if (last && S.includes(last)) order.push(last);
+      const rest = S.filter(e => e !== last);
+      const endPick = rest.find(e => nextS & (1 << (e-1)));
+      for (const e of rest) if (e !== endPick) order.push(e);
+      if (endPick) order.push(endPick);
+      let c = 0;
+      for (const e of order){ if (last && e !== last){ c++; purge += F(last, e); } last = e; }
+      if (!last) last = order[order.length-1];
+      if (c){ changes += c; lastChange = k; perLayer[k] = c; }
+    }
+    return {changes, purge, lastChange, perLayer};
+  }
+  // ===================== geometry analysis =====================
+  const SQH = Math.SQRT1_2;
+  function planeZ(k, h, h0){ return k === 0 ? h0/2 : h0 + (k - 0.5)*h; }
+  function layerCount(H, h, h0){ return 1 + Math.max(0, Math.ceil((H - h0)/h - 1e-6)); }
+
+  // One pass over the mesh. Per layer: area, outline length, overhanging outline length by tier,
+  // and where a family of parallel scan lines (at 45 degrees) crosses the outline.
+  function slice(pos, o){
+    const h = o.h, h0 = o.h0 || o.h, N = layerCount(o.H, h, h0), ds = o.ds, R = o.R, wRef = o.w || 0.42;
+    const A = new Float64Array(N), P = new Float64Array(N), cnt = new Uint32Array(N);
+    const ov = [new Float64Array(N), new Float64Array(N), new Float64Array(N)];
+    const cr = new Array(N); for (let k=0;k<N;k++) cr[k] = [];
+    const z = [0,0,0];
+    for (let i=0;i<pos.length;i+=9){
+      z[0]=pos[i+2]; z[1]=pos[i+5]; z[2]=pos[i+8];
+      const zmin = Math.min(z[0],z[1],z[2]), zmax = Math.max(z[0],z[1],z[2]);
+      const k0 = Math.max(0, Math.floor((zmin-h0)/h + 0.5)), k1 = Math.min(N-1, Math.ceil((zmax-h0)/h + 0.5));
+      if (k1 < k0) continue;
+      const ux=pos[i+3]-pos[i],uy=pos[i+4]-pos[i+1],uz=z[1]-z[0], vx=pos[i+6]-pos[i],vy=pos[i+7]-pos[i+1],vz=z[2]-z[0];
+      const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx, nxy=Math.hypot(nx,ny);
+      let tier = 0;
+      if (nz < 0 && nxy > 0){ const f = h*(-nz)/nxy/wRef; tier = f >= 0.75 ? 3 : f >= 0.5 ? 2 : f >= 0.25 ? 1 : 0; }
+      for (let k=k0;k<=k1;k++){
+        const zp = planeZ(k, h, h0);
+        const s0 = z[0]>zp, s1 = z[1]>zp, s2 = z[2]>zp;
+        const c = s0+s1+s2; if (c===0 || c===3) continue;
+        const lone = (s0!==s1 && s0!==s2) ? 0 : (s1!==s0 && s1!==s2) ? 1 : 2;
+        const o1 = (lone+1)%3, o2 = (lone+2)%3;
+        const lx=pos[i+lone*3], ly=pos[i+lone*3+1], lz=z[lone];
+        const t1=(zp-lz)/(z[o1]-lz), t2=(zp-lz)/(z[o2]-lz);
+        let px=lx+(pos[i+o1*3]-lx)*t1, py=ly+(pos[i+o1*3+1]-ly)*t1;
+        let qx=lx+(pos[i+o2*3]-lx)*t2, qy=ly+(pos[i+o2*3+1]-ly)*t2;
+        let dx=qx-px, dy=qy-py; const len = Math.hypot(dx, dy);
+        if (len < 1e-7) continue;
+        if (dx*ny - dy*nx < 0){ const tx=px, ty=py; px=qx; py=qy; qx=tx; qy=ty; }
+        A[k] += 0.5*(px*qy - qx*py); P[k] += len; cnt[k]++;
+        if (tier && k > 0) ov[tier-1][k] += len;
+        const up=(px+py)*SQH, uq=(qx+qy)*SQH;
+        if (up !== uq){
+          const lo = Math.min(up,uq), hi = Math.max(up,uq);
+          const jA = Math.floor((lo+R)/ds - 0.5) + 1, jB = Math.floor((hi+R)/ds - 0.5);
+          if (jB >= jA){
+            const vp=(py-px)*SQH, vq=(qy-qx)*SQH, qf = Math.min(4, len/(hi-lo)), cc = cr[k];
+            const dir = uq > up ? qf : -qf;   // sign carries the crossing direction
+            for (let j=jA;j<=jB;j++){ const t = (-R+(j+0.5)*ds-up)/(uq-up); cc.push(j, vp+(vq-vp)*t, dir); }
+          }
+        }
+      }
+    }
+    const M = Math.ceil(2*R/ds) + 2, iv = new Array(N);
+    for (let k=0;k<N;k++){
+      A[k] = Math.abs(A[k]);
+      const c = cr[k], n = c.length/3, keys = new Float64Array(n), idx = new Uint32Array(n);
+      for (let i=0;i<n;i++){ keys[i] = c[3*i]*8192 + (c[3*i+1] + 4096); idx[i] = i; }
+      idx.sort((a, b) => keys[a] - keys[b]);
+      // inside = non-zero winding, so overlapping bodies merge like in the slicer; open outlines fall back to even-odd
+      const out = []; let i = 0, uni = 0;
+      while (i < n){
+        const j = c[3*idx[i]]; let e = i; while (e < n && c[3*idx[e]] === j) e++;
+        let w = 0, st = 0, sq = 0; const mark = out.length;
+        for (let t=i;t<e;t++){
+          const a = idx[t], d = c[3*a+2] > 0 ? 1 : -1, prev = w; w += d;
+          if (prev === 0 && w !== 0){ st = c[3*a+1]; sq = Math.abs(c[3*a+2]); }
+          else if (prev !== 0 && w === 0) out.push(j, st, sq, c[3*a+1], Math.abs(c[3*a+2]));
+        }
+        if (w !== 0){
+          out.length = mark;
+          for (let t=i;t+1<e;t+=2){ const a = idx[t], b = idx[t+1]; out.push(j, c[3*a+1], Math.abs(c[3*a+2]), c[3*b+1], Math.abs(c[3*b+2])); }
+        }
+        i = e;
+      }
+      for (let q=0;q<out.length;q+=5) uni += (out[q+3] - out[q+1])*ds;
+      // overlapping bodies: the signed area counts the overlap twice
+      if (out.length >= 100 && A[k] > uni*1.08){ P[k] *= uni/A[k]; A[k] = uni; }
+      iv[k] = Float32Array.from(out); cr[k] = null;
+    }
+    let total = 0; for (let k=0;k<N;k++) total += cnt[k];
+    return {h, h0, N, A, P, ov, iv, ds, R, M, cnt, total};
+  }
+
+  // Outlines of chosen layers as closed loops [x, y, tier, ...]; tier belongs to the edge leaving that point.
+  function loopsAt(pos, sl, ks){
+    const h = sl.h, h0 = sl.h0, N = sl.N, slot = new Int32Array(N).fill(-1), segs = ks.map(() => []);
+    ks.forEach((k, i) => { slot[k] = i; });
+    let kLo = N, kHi = -1; for (const k of ks){ if (k < kLo) kLo = k; if (k > kHi) kHi = k; }
+    const z = [0,0,0];
+    for (let i=0;i<pos.length;i+=9){
+      z[0]=pos[i+2]; z[1]=pos[i+5]; z[2]=pos[i+8];
+      const zmin = Math.min(z[0],z[1],z[2]), zmax = Math.max(z[0],z[1],z[2]);
+      const k0 = Math.max(kLo, Math.floor((zmin-h0)/h + 0.5)), k1 = Math.min(kHi, Math.ceil((zmax-h0)/h + 0.5));
+      if (k1 < k0) continue;
+      const ux=pos[i+3]-pos[i],uy=pos[i+4]-pos[i+1],uz=z[1]-z[0], vx=pos[i+6]-pos[i],vy=pos[i+7]-pos[i+1],vz=z[2]-z[0];
+      const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx, nxy=Math.hypot(nx,ny);
+      let tier = 0;
+      if (nz < 0 && nxy > 0){ const f = h*(-nz)/nxy/0.42; tier = f >= 0.75 ? 3 : f >= 0.5 ? 2 : f >= 0.25 ? 1 : 0; }
+      for (let k=k0;k<=k1;k++){
+        const sI = slot[k]; if (sI < 0) continue;
+        const zp = planeZ(k, h, h0);
+        const s0 = z[0]>zp, s1 = z[1]>zp, s2 = z[2]>zp;
+        const c = s0+s1+s2; if (c===0 || c===3) continue;
+        const lone = (s0!==s1 && s0!==s2) ? 0 : (s1!==s0 && s1!==s2) ? 1 : 2;
+        const o1 = (lone+1)%3, o2 = (lone+2)%3;
+        const lx=pos[i+lone*3], ly=pos[i+lone*3+1], lz=z[lone];
+        const t1=(zp-lz)/(z[o1]-lz), t2=(zp-lz)/(z[o2]-lz);
+        const px=lx+(pos[i+o1*3]-lx)*t1, py=ly+(pos[i+o1*3+1]-ly)*t1;
+        const qx=lx+(pos[i+o2*3]-lx)*t2, qy=ly+(pos[i+o2*3+1]-ly)*t2;
+        const dx=qx-px, dy=qy-py;
+        if (dx*dx + dy*dy < 1e-12) continue;
+        if (dx*ny - dy*nx < 0) segs[sI].push(qx,qy,px,py, k > 0 ? tier : 0); else segs[sI].push(px,py,qx,qy, k > 0 ? tier : 0);
+      }
+    }
+    return segs.map(chain);
+  }
+
+  // Join segments [px,py,qx,qy,tier] end to start into closed loops.
   function chain(s){
-    const n = s.length/4, key = (x, y) => Math.round(x*1000) + ',' + Math.round(y*1000);
-    const map = new Map();
-    for (let i=0;i<n;i++){ const k = key(s[4*i], s[4*i+1]); const a = map.get(k); if (a) a.push(i); else map.set(k, [i]); }
+    const n = s.length/5, key = (x, y) => (Math.round(x*1000) + 524288)*2097152 + (Math.round(y*1000) + 524288);
+    const head = new Map(), next = new Int32Array(n).fill(-1);
+    for (let i=n-1;i>=0;i--){ const k = key(s[5*i], s[5*i+1]); const p = head.get(k); if (p !== undefined) next[i] = p; head.set(k, i); }
     const used = new Uint8Array(n), loops = [];
     for (let i=0;i<n;i++){
       if (used[i]) continue;
-      const loop = [s[4*i], s[4*i+1]]; let cur = i; used[i] = 1;
+      const loop = []; let cur = i; used[i] = 1;
       for (;;){
-        const ex = s[4*cur+2], ey = s[4*cur+3]; loop.push(ex, ey);
-        const a = map.get(key(ex, ey)); let nx = -1;
-        if (a) for (const j of a) if (!used[j]){ nx = j; break; }
-        if (nx < 0) break; used[nx] = 1; cur = nx;
+        loop.push(s[5*cur], s[5*cur+1], s[5*cur+4]);
+        let j = head.get(key(s[5*cur+2], s[5*cur+3])); if (j === undefined) j = -1;
+        while (j >= 0 && used[j]) j = next[j];
+        if (j < 0) break; used[j] = 1; cur = j;
       }
-      if (loop.length >= 6) loops.push(loop);
+      if (loop.length >= 9) loops.push(loop);
     }
     return loops;
   }
 
-  // Time for a path of length L made of straight runs about d long, with speed v and acceleration a.
-  function mt(L, v, a, d){
-    if (L <= 0) return 0;
-    d = Math.max(0.5, Math.min(d, L));
-    const t = d >= v*v/a ? d/v + v/a : 2*Math.sqrt(d/a);
-    return L/d*t;
+  // Which layers get a full outline analysis (all of them unless the model is very heavy).
+  function samplePlan(sl, budget){
+    const stride = Math.max(1, Math.ceil(sl.total/(budget || 300000)));
+    const ks = [];
+    for (let k=0;k<sl.N;k++) if (k < 2 || k === sl.N-1 || k % stride === 0) ks.push(k);
+    const map = new Int32Array(sl.N); let j = 0;
+    for (let k=0;k<sl.N;k++){ while (j+1 < ks.length && Math.abs(ks[j+1]-k) <= Math.abs(ks[j]-k)) j++; map[k] = j; }
+    map[0] = 0;
+    return {ks, map, stride};
   }
 
-  const DEF = {lw:0.42, walls:2, topL:5, botL:3, infill:0.15, pattern:'grid', mode:1,
-    vOut:200, vIn:300, vSparse:270, vSolid:250, vTop:200, vFirst:50, vFirstInf:105, vTravel:500, vSupport:150,
-    aNorm:6000, aOut:5000, flow:21, dens:1.24, minLayer:4, copies:1, support:false, brim:0, prep:true, corr:1};
+  // ===================== motion model (same rules as Bambu Studio's estimator) =====================
+  function trap(d, vc, a, ve, vx){
+    if (d <= 0) return 0;
+    if (ve > vc) ve = vc; if (vx > vc) vx = vc;
+    let ad = (vc*vc - ve*ve)/(2*a), dd = (vc*vc - vx*vx)/(2*a);
+    if (ad + dd > d){
+      ad = Math.min(d, Math.max(0, (2*a*d - ve*ve + vx*vx)/(4*a)));
+      const vp = Math.sqrt(ve*ve + 2*a*ad), ve2 = Math.sqrt(Math.max(0, vp*vp - 2*a*(d-ad)));
+      return (vp - ve)/a + (vp - ve2)/a;
+    }
+    return (vc - ve)/a + (vc - vx)/a + (d - ad - dd)/vc;
+  }
 
-  function estimate(L, st, s0){
-    const s = Object.assign({}, DEF, s0);
-    const h = L.h, lw = s.lw, li = lw*1.07, M = s.mode;
-    const cap = (v, w) => Math.min(v, s.flow/(w*h))*M;
-    const vOut = cap(s.vOut,lw), vIn = cap(s.vIn,lw), vSol = cap(s.vSolid,lw), vSp = cap(s.vSparse,li), vTop = cap(s.vTop,lw);
-    const vF = cap(s.vFirst,lw), vFI = cap(s.vFirstInf,lw), vSup = cap(s.vSupport,lw);
-    const aN = s.aNorm, aO = Math.min(s.aOut, s.aNorm), aF = Math.min(500, aN), aT = Math.min(2000, aN);
-    const c = Math.max(1, s.copies|0), K = 1.08*(s.corr || 1);
-    const I = new Float64Array(L.N), W = new Float64Array(L.N); let interiorVol = 0;
-    for (let i=0;i<L.N;i++){
-      const full = L.P[i]*s.walls*lw, wallA = Math.min(L.A[i], full);
-      W[i] = full > 0 ? wallA/full : 0; I[i] = L.A[i] - wallA; interiorVol += I[i]*h;
+  // Time to run one closed loop. speedOf(tier) gives the speed limit of each edge.
+  const _D = [], _C = [], _X = [], _Y = [], _J = [], _E = [], _NM = [];
+  function planLoop(loop, speedOf, a, jerk, arcNd, res){
+    const n = loop.length/3; let m = 0;
+    for (let j=0;j<n;j++){
+      const k = (j+1) % n, dx = loop[3*k]-loop[3*j], dy = loop[3*k+1]-loop[3*j+1], d = Math.hypot(dx, dy);
+      if (d < 1e-6) continue;
+      _D[m] = d; _X[m] = dx/d; _Y[m] = dy/d; _C[m] = speedOf[loop[3*j+2]]; m++;
     }
-    const skinVol = Math.min(interiorVol, (st.top*s.topL + st.bot*s.botL)*h);
-    const topVol = Math.min(skinVol, st.top*h);
-    const fT = interiorVol > 0 ? topVol/interiorVol : 0, f = interiorVol > 0 ? (skinVol - topVol)/interiorVol : 0;
-    let tW=0, tS=0, tSp=0, tO=0, vol=0;
-    for (let i=0;i<L.N;i++){
-      const A = L.A[i]; if (A <= 0) continue;
-      const d = Math.sqrt(A), first = i === 0;
-      const lo = L.P[i]*W[i], lin = L.P[i]*(s.walls-1)*W[i]*0.95;
-      const lt = first ? 0 : I[i]*fT/lw, ls = (first ? I[i] : I[i]*f)/lw, lsp = first ? 0 : I[i]*(1-f-fT)*s.infill/li;
-      let dsp = d*0.8;
-      if (s.pattern === 'gyroid') dsp = Math.min(dsp, 12); else if (s.pattern === 'honeycomb') dsp = Math.min(dsp, Math.max(3, 3*li/Math.max(s.infill, 0.05)));
-      let w, so, sp, br = 0;
-      if (first){
-        w = mt(lo,vF,aF,d) + mt(lin,vF,aF,d); so = mt(ls,vFI,aF,d*0.8); sp = 0;
-        if (s.brim > 0){ const n = Math.round(s.brim/lw), bl = n*L.P[i] + Math.PI*lw*n*n; br = mt(bl,vF,aF,d*1.2); vol += bl*lw*h*c; }
-      } else {
-        w = mt(lo,vOut,aO,d) + mt(lin,vIn,aN,d); so = mt(ls,vSol,aN,d*0.8) + mt(lt,vTop,aT,d*0.8); sp = mt(lsp,vSp,aN,dsp);
+    if (m < 2) return;
+    let naive = 0, len = 0;
+    for (let j=0;j<m;j++){ naive += _D[j]/_C[j]; len += _D[j]; }
+    _J[0] = Math.min(_C[0], jerk);
+    for (let j=1;j<m;j++){
+      const ddx = _X[j]-_X[j-1], ddy = _Y[j]-_Y[j-1], nd = Math.hypot(ddx, ddy);
+      let vj;
+      if (nd > 1e-6){
+        const mx = Math.max(Math.abs(ddx), Math.abs(ddy));
+        if (nd < 0.5){
+          const r = _D[j]/nd; _C[j] = Math.min(_C[j], Math.sqrt(a*r));
+          vj = Math.min(_C[j-1], _C[j]);
+          if (nd > arcNd) vj = Math.min(vj, jerk/mx);
+        } else vj = Math.min(_C[j-1], _C[j], jerk/mx);
+        const s0 = Math.min(_C[j-1], jerk), s1 = Math.min(_C[j], jerk);
+        if (s0 > 0.99*vj && s1 > 0.99*vj) vj = s1;
+      } else vj = Math.min(_C[j-1], _C[j]);
+      _J[j] = vj;
+    }
+    for (let j=0;j<m;j++){ const va = Math.sqrt(Math.pow(Math.min(_C[j], jerk), 2) + 2*a*_D[j]); _E[j] = Math.min(_J[j], va); _NM[j] = _C[j] <= va; }
+    for (let j=m-2;j>=0;j--){
+      if (_E[j] !== _J[j]){
+        if (!_NM[j] && _J[j] > _E[j+1]) _E[j] = Math.min(_J[j], Math.sqrt(_E[j+1]*_E[j+1] + 2*a*_D[j])); else _E[j] = _J[j];
       }
-      w = (w + br)*K*c; so *= K*c; sp *= K*c;
-      const ov = 1 + 2*d/Math.max(50, s.vTravel*M);
-      const raw = w + so + sp + ov;
-      tW += w; tS += so; tSp += sp; tO += ov + Math.max(0, s.minLayer - raw);
-      vol += ((lo + lin + ls + lt)*lw + lsp*li)*h*c;
     }
-    let tSup = 0;
-    if (s.support && st.supVol > 0){
-      const sv = st.supVol*0.15;
-      tSup = mt(sv/(lw*h), vSup, aN, 10)*K*c; vol += sv*c;
+    for (let j=1;j<m;j++) if (!_NM[j-1] && _E[j-1] < _E[j]) _E[j] = Math.min(_E[j], Math.sqrt(_E[j-1]*_E[j-1] + 2*a*_D[j-1]));
+    let t = 0;
+    for (let j=0;j<m;j++) t += trap(_D[j], _C[j], a, _E[j], j+1 < m ? _E[j+1] : Math.min(_C[j], jerk));
+    res.t += t; res.naive += naive; res.len += len;
+  }
+
+  const xsec = (w, h) => (w - h*(1 - Math.PI/4))*h;
+  const spc = (w, h) => w - h*(1 - Math.PI/4);
+
+  // Interval helpers on one scan line. Lists are flat [a0,b0,a1,b1,...], sorted and disjoint.
+  function ivAnd(a, b, out){
+    out.length = 0; let i = 0, j = 0;
+    while (i < a.length && j < b.length){
+      const lo = Math.max(a[i], b[j]), hi = Math.min(a[i+1], b[j+1]);
+      if (hi > lo) out.push(lo, hi);
+      if (a[i+1] < b[j+1]) i += 2; else j += 2;
     }
-    const prep = s.prep ? 360 : 0;
+    return out;
+  }
+  function ivSub(a, b, out){
+    out.length = 0; let j = 0;
+    for (let i=0;i<a.length;i+=2){
+      let lo = a[i]; const hi = a[i+1];
+      while (j < b.length && b[j+1] <= lo) j += 2;
+      let k = j;
+      while (k < b.length && b[k] < hi){
+        if (b[k] > lo) out.push(lo, b[k]);
+        lo = Math.max(lo, b[k+1]); k += 2;
+      }
+      if (lo < hi) out.push(lo, hi);
+    }
+    return out;
+  }
+
+  const TUNE = {skinKeep:0.05, spHop:0.6, minSparse:15, arcNd:0.2, inset:1.0, conn:1.4, c0:2.2, c1:1.6, wipe:0.05, gyro:0.55, honey:0.2, small:0.02, fill:0.985, skinMin:1};
+
+  const DEF = {
+    h:0.2, h0:0.2, wOuter:0.42, wInner:0.45, wSparse:0.45, wSolid:0.42, wTop:0.42, wFirst:0.5, wSupport:0.42,
+    walls:2, topL:5, botL:3, topMinT:1.0, infill:0.15, pattern:'grid',
+    vOuter:200, vInner:300, vSparse:270, vSolid:250, vTop:200, vFirst:50, vFirstInf:105, vTravel:700, vSupport:150, vSupInt:80, vBridge:50, vOv:[50,30,10],
+    aNorm:6000, aOuter:5000, aInner:0, aFirst:500, aTop:2000, aTravel:10000, jerk:9,
+    limAExt:12000, limATrav:9000, limVxy:500, limVz:30, limAz:1500, limVe:30, limAe:5000,
+    retLen:0.8, retSpeed:30, zHop:0.4,
+    flow:21, flowRatio:0.98, dens:1.26, minLayer:6, minSpeed:20,
+    mode:1, copies:1, corr:1, prep:375, timelapse:0, cooling:true,
+    support:false, supType:'tree', brim:0,
+    colors:1, changes:0, tChange:0, purgeVol:0, towerVol:0
+  };
+
+  // Per-layer print model. G = {sl, plan, loops, st, sup}
+  function estimate(G, s0){
+    const s = Object.assign({}, DEF, s0), sl = G.sl, N = sl.N, ds = sl.ds, M = sl.M, T = TUNE;
+    if (s.topMinT > 0 && s.topL > 0) s.topL = Math.max(s.topL, Math.ceil(s.topMinT/s.h - 1e-9));
+    const c = Math.max(1, s.copies|0), mode = s.mode || 1;
+    const aN = Math.min(s.aNorm, s.limAExt), aO = Math.min(s.aOuter || s.aNorm, s.limAExt), aI = Math.min(s.aInner || s.aNorm, s.limAExt);
+    const aF = Math.min(s.aFirst, aN), aT = Math.min(s.aTop || s.aNorm, aN), aTr = Math.min(s.aTravel || s.aNorm, s.limATrav);
+    const jerk = s.jerk;
+    const tierV = [0, s.vOv[0], s.vOv[1], s.vOv[2]];
+    // interior intervals of every layer, inset by the wall band
+    const off = new Array(N), dat = new Array(N);
+    for (let k=0;k<N;k++){
+      const hk = k === 0 ? s.h0 : s.h;
+      const sO = spc(k === 0 ? s.wFirst : s.wOuter, hk), sI = spc(k === 0 ? s.wFirst : s.wInner, hk);
+      const band = (sO + (s.walls-1)*sI - 0.15*sI)*T.inset, src = sl.iv[k], o = new Int32Array(M+1), d = [];
+      let p = 0;
+      for (let j=0;j<M;j++){
+        o[j] = d.length;
+        while (p < src.length && src[p] === j){
+          const a = src[p+1] + band*src[p+2], b = src[p+3] - band*src[p+4];
+          if (b - a > 0.05) d.push(a, b);
+          p += 5;
+        }
+      }
+      o[M] = d.length; off[k] = o; dat[k] = d;
+    }
+    const line = (k, j) => dat[k].slice(off[k][j], off[k][j+1]);
+    const tmpA = [], tmpB = [], tmpC = [], tmpD = [];
+    // exposed skins: top = not covered by the layer above, bottom = nothing underneath; slivers are dropped
+    const keep = (l, min) => { const r = []; for (let q=0;q<l.length;q+=2) if (l[q+1]-l[q] >= min) r.push(l[q], l[q+1]); return r; };
+    const topS = new Array(N), botS = new Array(N);
+    for (let k=0;k<N;k++){
+      const tp = new Array(M), bt = new Array(M), o = off[k];
+      for (let j=0;j<M;j++){
+        if (o[j] === o[j+1]){ continue; }
+        const U = line(k, j);
+        tp[j] = k+1 > N-1 ? U : keep(ivSub(U, line(k+1, j), tmpA), T.skinKeep);
+        bt[j] = k === 0 ? U : keep(ivSub(U, line(k-1, j), tmpA), T.skinKeep);
+      }
+      topS[k] = tp; botS[k] = bt;
+    }
+    let tW=0, tS=0, tSp=0, tTr=0, tCool=0, vol=0, tBr=0;
+    const layerT = new Float32Array(N);
+    const res = {t:0, naive:0, len:0};
+    let lastSp = 0;
+    for (let i=0;i<N;i++){
+      const prevSp = lastSp; lastSp = 0;
+      const A = sl.A[i]; if (A <= 0){ continue; }
+      const first = i === 0, hi = first ? s.h0 : s.h;
+      const wO = first ? s.wFirst : s.wOuter, wI = first ? s.wFirst : s.wInner, wSo = first ? s.wFirst : s.wSolid, wSp = first ? s.wFirst : s.wSparse, wT = first ? s.wFirst : s.wTop;
+      const sO = spc(wO, hi), sI = spc(wI, hi), sSo = spc(wSo, hi), sSp = spc(wSp, hi), sT = spc(wT, hi);
+      const cap = (v, w) => Math.min(v, s.flow/xsec(w, hi))*mode;
+      const vO = cap(first ? s.vFirst : s.vOuter, wO), vI = cap(first ? s.vFirst : s.vInner, wI);
+      const vSo = cap(first ? s.vFirstInf : s.vSolid, wSo), vSp = cap(s.vSparse, wSp), vT = cap(first ? s.vFirstInf : s.vTop, wT), vB = cap(s.vBridge, wSo);
+      const aWO = first ? aF : aO, aWI = first ? aF : aI, aInf = first ? aF : aN, aTop = first ? aF : aT;
+      // ---- walls ----
+      const smp = G.plan.map[i], loops = G.loops[smp], P = sl.P[i];
+      let nLoops = 0, chi = 0, Ps = 0;
+      const spO = [vO, Math.min(vO, tierV[1]*mode), Math.min(vO, tierV[2]*mode), Math.min(vO, tierV[3]*mode)];
+      const spI = [vI, vI, Math.min(vI, tierV[1]*mode*2), Math.min(vI, tierV[2]*mode*2)];
+      res.t = 0; res.naive = 0; res.len = 0;
+      let sgnSum = 0; const ars = [];
+      for (const lp of loops){
+        planLoop(lp, spO, aWO, jerk, T.arcNd, res); nLoops++;
+        let ar = 0; for (let q=0, n=lp.length/3; q<n; q++){ const r = (q+1) % n; ar += lp[3*q]*lp[3*r+1] - lp[3*r]*lp[3*q+1]; }
+        ars.push(ar); sgnSum += ar;
+      }
+      let nIsl = 0; for (const ar of ars){ if (ar*sgnSum > 0){ chi++; nIsl++; } else chi--; }
+      nIsl = Math.max(1, nIsl);
+      Ps = res.len;
+      const oT = res.t, oN = res.naive;
+      res.t = 0; res.naive = 0; res.len = 0;
+      for (const lp of loops) planLoop(lp, spI, aWI, jerk, T.arcNd, res);
+      const iT = res.t, iN = res.naive;
+      if (Ps <= 0){ continue; }
+      const kLen = P/Ps;
+      let lo = Math.max(0, P - Math.PI*wO*chi), lin = 0;
+      for (let j=1;j<s.walls;j++) lin += Math.max(0, P - 2*Math.PI*(sO + (j-0.5)*sI)*chi);
+      if (lo*sO >= A){ lo = A/sO; lin = 0; } else if (lo*sO + lin*sI > A) lin = (A - lo*sO)/sI;
+      const fo = lo/P, fi = lin/P;                    // length relative to the outline
+      let wallN = (oN*fo + iN*fi)*kLen;                // naive (length / speed)
+      let wallO = ((oT - oN)*Math.min(1, fo) + (iT - iN)*Math.min(s.walls-1, fi))*Math.sqrt(kLen);   // lost to acceleration
+      const Iarea = Math.max(0, A - lo*sO - lin*sI);
+      vol += (lo*xsec(wO, hi) + lin*xsec(wI, hi))*c;
+      // ---- infill from scan lines ----
+      let spLen = 0, spT = 0, spNv = 0, soLen = 0, soT = 0, soNv = 0, toLen = 0, toT = 0, toNv = 0, brLen = 0, brT = 0, brNv = 0, scanArea = 0;
+      const rho = Math.min(1, s.infill);
+      const spSpace = rho > 0 ? sSp/rho : 1e9;
+      const dense = rho >= 0.99;
+      const connSo = T.conn*sSo, connSp = Math.min(T.conn*spSpace*(s.pattern === 'grid' ? 2 : s.pattern === 'lines' ? 1 : 3), 12);
+      const connSpT = 2*trap(Math.min(connSp, 4), s.vTravel, aTr, 0, 0)*T.spHop;
+      let vSpE = vSp, spSeg = 0;
+      if (s.pattern === 'gyroid') vSpE = Math.min(vSp, Math.sqrt(aInf*T.gyro*spSpace));
+      if (s.pattern === 'honeycomb') spSeg = T.honey*spSpace*1.5;
+      const o = off[i], d = dat[i];
+      for (let j=0;j<M;j++){
+        if (o[j] === o[j+1]) continue;
+        const U = d.slice(o[j], o[j+1]);
+        // sparse = interior minus the shells below top skins and above bottom skins
+        let sparse = U, top = [], bridge = [], inner = [], brInf = [];
+        if (first){ inner = U; sparse = []; }
+        else {
+          top = s.topL > 0 && topS[i][j] ? topS[i][j] : [];
+          bridge = s.botL > 0 && botS[i][j] ? botS[i][j] : [];
+          for (let q=0;q<s.botL && i-q >= 0;q++){ const b2 = botS[i-q][j]; if (b2 && b2.length && sparse.length) sparse = ivSub(sparse, b2, tmpB).slice(); }
+          for (let q=0;q<s.topL-1 && i+q <= N-1;q++){ const t2 = topS[i+q][j]; if (t2 && t2.length && sparse.length) sparse = ivSub(sparse, t2, tmpB).slice(); }
+          if (s.topL > 0 && i+s.topL-1 <= N-1 && sparse.length){
+            const t2 = topS[i+s.topL-1][j];
+            if (t2 && t2.length){
+              const rest = ivSub(sparse, t2, tmpB).slice();
+              // internal bridge: first solid layer laid over real sparse infill only
+              if (s.topL > 1 && !dense && prevSp >= T.minSparse){
+                brInf = ivSub(sparse, rest, tmpD).slice();
+                for (let q=1;q<=s.botL && i-q >= 0 && brInf.length;q++){ const b2 = botS[i-q][j]; if (b2 && b2.length) brInf = ivSub(brInf, b2, tmpD).slice(); }
+              }
+              sparse = rest;
+            }
+          }
+          inner = ivSub(U, sparse, tmpC).slice();
+          if (top.length) inner = ivSub(inner, top, tmpC).slice();
+          if (bridge.length) inner = ivSub(inner, bridge, tmpC).slice();
+          if (brInf.length){ inner = ivSub(inner, brInf, tmpC).slice(); bridge = bridge.concat(brInf); }
+        }
+        for (let q=0;q<U.length;q+=2) scanArea += U[q+1]-U[q];
+        for (let q=0;q<sparse.length;q+=2){
+          const L = sparse[q+1]-sparse[q]; if (L < T.skinMin){ soLen += L/sSo; soT += L/vSo/sSo; soNv += L/vSo/sSo; continue; }
+          if (dense){ soLen += L/sSo; soT += (trap(L, vSo, aInf, jerk, jerk) + trap(connSo, vSo, aInf, jerk, jerk))/sSo; soNv += (L + connSo)/vSo/sSo; continue; }
+          if (rho <= 0) continue;
+          const m = (s.pattern === 'honeycomb' ? 1.35 : 1)/spSpace;
+          spLen += L*m;
+          if (spSeg > 0){ const ns = Math.max(1, L/spSeg); spT += m*ns*trap(L/ns, vSpE, aInf, jerk, jerk); spNv += m*L/vSpE; }
+          else { spT += m*(trap(L, vSpE, aInf, jerk, jerk) + connSpT); spNv += m*L/vSpE; }
+        }
+        for (let q=0;q<inner.length;q+=2){
+          const L = inner[q+1]-inner[q]; if (L < T.skinMin){ soLen += L/sSo; soT += L/vSo/sSo; soNv += L/vSo/sSo; continue; }
+          soLen += L/sSo; soT += (trap(L, vSo, aInf, jerk, jerk) + trap(connSo, vSo, aInf, jerk, jerk))/sSo; soNv += (L + connSo)/vSo/sSo;
+        }
+        for (let q=0;q<top.length;q+=2){
+          const L = top[q+1]-top[q]; if (L < T.skinMin){ soLen += L/sSo; soT += L/vSo/sSo; soNv += L/vSo/sSo; continue; }
+          toLen += L/sT; toT += (trap(L, vT, aTop, jerk, jerk) + trap(T.conn*sT, vT, aTop, jerk, jerk))/sT; toNv += (L + T.conn*sT)/vT/sT;
+        }
+        for (let q=0;q<bridge.length;q+=2){
+          const L = bridge[q+1]-bridge[q]; if (L < T.skinMin){ soLen += L/sSo; soT += L/vSo/sSo; soNv += L/vSo/sSo; continue; }
+          brLen += L/sSo; brT += (trap(L, vB, aInf, jerk, jerk) + trap(connSo, vB, aInf, jerk, jerk))/sSo; brNv += (L + connSo)/vB/sSo;
+        }
+      }
+      // scan lines are ds apart: scale to real line density, and to the analytic interior area
+      const kA = scanArea > 0 ? Math.min(1.6, Math.max(0, Iarea/(scanArea*ds))) : 0, kS = ds*kA;
+      spLen *= kS; spT *= kS; spNv *= kS; soLen *= kS; soT *= kS; soNv *= kS; toLen *= kS; toT *= kS; toNv *= kS; brLen *= kS; brT *= kS; brNv *= kS;
+      if (spLen > 0 && !dense && spLen*sSp/rho/nIsl < T.minSparse){ const k2 = sSp/rho/sSo; soLen += spLen*k2; soNv += spLen*k2/vSo; soT += spLen*k2/vSo*1.6 + (spT - spNv); spLen = 0; spT = 0; spNv = 0; }
+      lastSp = spLen > 0 && rho > 0 ? spLen*spSpace : 0;
+      vol += (spLen*xsec(wSp, hi) + soLen*xsec(wSo, hi) + toLen*xsec(wT, hi) + brLen*xsec(wSo, hi))*c;
+      // overhanging walls over air: bridge share of the layer prints at bridge speed
+      const brShare = Iarea > 0 ? Math.min(1, brLen*sSo/Iarea) : 0;
+      if (brShare > 0.02 && !first){ const extra = (lo + lin)*brShare*(1/vB - 1/vO); if (extra > 0) wallN += extra; }
+      // ---- brim on the first layer ----
+      let brimN = 0;
+      if (first && s.brim > 0){ const nb = Math.round(s.brim/sO), bl = nb*P + Math.PI*sO*nb*nb; brimN = bl/vO; wallO += nb*nLoops*4*vO/aF*0.5; vol += bl*xsec(wO, hi)*c; }
+      // ---- travel, retraction, z hop ----
+      const vTr = Math.min(s.vTravel*mode, s.limVxy);
+      const dIn = 0.35*Math.sqrt(A/nIsl) + 1, dOut = nIsl > 1 ? Math.sqrt(sl.R*sl.R*2/nIsl)*0.6 : dIn;
+      const tE = 2*trap(s.retLen, Math.min(s.retSpeed, s.limVe), s.limAe, 0, 0), tZ = s.zHop > 0 ? 2*trap(s.zHop, s.limVz, s.limAz, 0, 0) : 0;
+      const cycIn = tE + tZ + trap(dIn, vTr, aTr, 0, 0) + T.wipe, cycOut = tE + tZ + trap(dOut, vTr, aTr, 0, 0) + T.wipe;
+      const hasInfill = (spLen + soLen + toLen + brLen) > 1 ? 1 : 0;
+      const trav = (T.c0*cycIn + T.c1*(nIsl - 1)*cycOut + (nIsl - 1)*hasInfill*cycIn + nLoops*s.walls*T.small)*c + trap(hi, s.limVz, s.limAz, 0, 0);
+      const travN = ((T.c0 + (nIsl-1)*hasInfill)*(2*s.retLen/s.retSpeed + dIn/vTr) + T.c1*(nIsl-1)*(2*s.retLen/s.retSpeed + dOut/vTr))*c;
+      // ---- cooling: stretch short layers to the minimum layer time ----
+      const adjN = (wallN + brimN + spNv + soNv + toNv)*c, fixN = brNv*c + travN;
+      const adjO = (wallO + (spT - spNv) + (soT - soNv) + (toT - toNv))*c;
+      let f = 1;
+      // Bambu counts the timelapse move inside the layer's cooling time, so it slows down that much less
+      const minL = Math.max(0, s.minLayer - (s.timelapse || s.tlCredit || 0));
+      if (s.cooling && minL > 0 && adjN > 0 && adjN + fixN < minL){
+        f = (minL - fixN)/adjN;
+        const fMax = Math.max(1, Math.min(vO, vSo)/(s.minSpeed*mode)); if (f > fMax) f = fMax;
+      }
+      const printT = adjN*f + adjO/f + brT*c;
+      const K = s.corr || 1;
+      const tl = (printT + trav)*K + (s.timelapse || 0);
+      if (s.debugLayer === i) s0.debugOut = {spLen, spT, soLen, soT, toLen, toT, brLen, brT, lo, lin, Iarea, scanArea:scanArea*ds, wallN, wallO, f, adjN, fixN, trav, nIsl, nLoops};
+      layerT[i] = tl;
+      const share = adjN > 0 ? 1/adjN : 0;
+      tW += ((wallN + brimN)*c*f + wallO*c/f)*K; tS += ((soNv + toNv)*c*f + ((soT - soNv) + (toT - toNv))*c/f + brT*c)*K; tSp += (spNv*c*f + (spT - spNv)*c/f)*K; tTr += trav*K;
+    }
+    // ---- supports ----
+    let tSup = 0, supVol = 0;
+    if (s.support && G.sup && G.sup.vol > 0){
+      const vS = Math.min(s.vSupport, s.flow/xsec(s.wSupport, s.h))*mode;
+      const perCm3 = G.sup.type === 'tree' ? 120 : 75;       // seconds per cm3 at 150 mm/s, from reference slices
+      tSup = (G.sup.vol + G.sup.intVol)/1000*perCm3*(0.4 + 0.6*150/vS)*c*(s.corr || 1);
+      supVol = (G.sup.vol + G.sup.intVol)*c;
+    }
+    // ---- colour changes ----
+    let tCol = 0, colVol = 0;
+    if (s.colors > 1 && s.changes > 0){ tCol = s.changes*s.tChange; colVol = s.changes*s.purgeVol + s.towerVol; }
+    const fr = s.flowRatio*T.fill;
+    const printVol = (vol + supVol)*fr, total = vol*fr;
+    let sum = 0; for (let i=0;i<N;i++) sum += layerT[i];
+    const tlapse = (s.timelapse || 0)*N;
     return {
-      total: prep + tW + tS + tSp + tSup + tO,
-      parts: {walls:tW, solid:tS, infill:tSp, support:tSup, other:tO + prep},
-      grams: vol/1000*s.dens, meters: vol/2.405/1000, layers: L.N
+      total: s.prep + sum + tSup + tCol, print: sum - tlapse + tSup + tCol, layerT,
+      parts: {walls:tW, solid:tS, infill:tSp, support:tSup, travel:tTr, color:tCol, timelapse:tlapse, prep:s.prep,
+              cooling: Math.max(0, sum - tlapse - tW - tS - tSp - tTr)},
+      grams: (printVol + colVol)/1000*s.dens, gramsModel: total/1000*s.dens, gramsSupport: supVol*fr/1000*s.dens, gramsWaste: colVol/1000*s.dens,
+      meters: (printVol + colVol)/2.405/1000, cm3: (printVol + colVol)/1000, layers: N
     };
   }
-
+  // ===================== supports (schematic) =====================
+  // Coarse voxel picture of the model, overhang contact points, then either straight columns or merging branches.
+  function supports(pos, size, o){
+    const cosT = o.cosT, H = size[2], cell = Math.min(2.5, Math.max(1, Math.max(size[0], size[1])/110)), dz = cell;
+    const nx = Math.ceil(size[0]/cell) + 4, ny = Math.ceil(size[1]/cell) + 4, nz = Math.max(1, Math.ceil(H/dz));
+    const x0 = -nx*cell/2, y0 = -ny*cell/2;
+    const occ = new Uint8Array(nx*ny*nz), rows = new Array(nz*ny);
+    const z = [0,0,0], contacts = new Map();
+    let ovArea = 0;
+    for (let i=0;i<pos.length;i+=9){
+      z[0]=pos[i+2]; z[1]=pos[i+5]; z[2]=pos[i+8];
+      const zmin = Math.min(z[0],z[1],z[2]), zmax = Math.max(z[0],z[1],z[2]);
+      const ux=pos[i+3]-pos[i],uy=pos[i+4]-pos[i+1],uz=z[1]-z[0], vx=pos[i+6]-pos[i],vy=pos[i+7]-pos[i+1],vz=z[2]-z[0];
+      const nX=uy*vz-uz*vy, nY=uz*vx-ux*vz, nZ=ux*vy-uy*vx, nl = Math.hypot(nX,nY,nZ);
+      // occupancy: outline crossings per coarse level and row
+      const l0 = Math.max(0, Math.ceil(zmin/dz - 0.5)), l1 = Math.min(nz-1, Math.floor(zmax/dz - 0.5));
+      for (let l=l0;l<=l1;l++){
+        const zp = (l+0.5)*dz, s0 = z[0]>zp, s1 = z[1]>zp, s2 = z[2]>zp, c = s0+s1+s2;
+        if (c===0 || c===3) continue;
+        const lone = (s0!==s1 && s0!==s2) ? 0 : (s1!==s0 && s1!==s2) ? 1 : 2, o1 = (lone+1)%3, o2 = (lone+2)%3;
+        const lx=pos[i+lone*3], ly=pos[i+lone*3+1], lz=z[lone], t1=(zp-lz)/(z[o1]-lz), t2=(zp-lz)/(z[o2]-lz);
+        const px=lx+(pos[i+o1*3]-lx)*t1, py=ly+(pos[i+o1*3+1]-ly)*t1, qx=lx+(pos[i+o2*3]-lx)*t2, qy=ly+(pos[i+o2*3+1]-ly)*t2;
+        if (py === qy) continue;
+        const ya = Math.min(py,qy), yb = Math.max(py,qy);
+        const rA = Math.floor((ya-y0)/cell - 0.5) + 1, rB = Math.floor((yb-y0)/cell - 0.5);
+        for (let r=Math.max(0,rA); r<=Math.min(ny-1,rB); r++){
+          const yc = y0 + (r+0.5)*cell, x = px + (qx-px)*(yc-py)/(qy-py), key = l*ny + r;
+          (rows[key] || (rows[key] = [])).push(x);
+        }
+      }
+      // overhang contact cells
+      if (nl > 0 && nZ/nl < -cosT && zmin > 0.3){
+        ovArea += -nZ/2;
+        const xa = Math.min(pos[i],pos[i+3],pos[i+6]), xb = Math.max(pos[i],pos[i+3],pos[i+6]), ya = Math.min(pos[i+1],pos[i+4],pos[i+7]), yb = Math.max(pos[i+1],pos[i+4],pos[i+7]);
+        const add = (ix, iy, zz) => { if (ix<0||iy<0||ix>=nx||iy>=ny) return; const k = (Math.floor(zz/dz)*ny + iy)*nx + ix; const p = contacts.get(k); if (p === undefined || zz < p) contacts.set(k, zz); };
+        const cxm = (pos[i]+pos[i+3]+pos[i+6])/3, cym = (pos[i+1]+pos[i+4]+pos[i+7])/3;
+        add(Math.floor((cxm-x0)/cell), Math.floor((cym-y0)/cell), (z[0]+z[1]+z[2])/3);
+        const iA = Math.floor((xa-x0)/cell), iB = Math.floor((xb-x0)/cell), jA = Math.floor((ya-y0)/cell), jB = Math.floor((yb-y0)/cell);
+        if ((iB-iA+1)*(jB-jA+1) <= 40000) for (let iy=jA;iy<=jB;iy++) for (let ix=iA;ix<=iB;ix++){
+          const X = x0+(ix+0.5)*cell - pos[i], Y = y0+(iy+0.5)*cell - pos[i+1];
+          const den = ux*vy - uy*vx; if (Math.abs(den) < 1e-12) continue;
+          const a = (X*vy - Y*vx)/den, b = (ux*Y - uy*X)/den;
+          if (a < 0 || b < 0 || a + b > 1) continue;
+          add(ix, iy, z[0] + a*uz + b*vz);
+        }
+      }
+    }
+    for (let key=0;key<rows.length;key++){
+      const xs = rows[key]; if (!xs) continue; xs.sort((a, b) => a - b);
+      const base = key*nx;
+      for (let q=0;q+1<xs.length;q+=2){
+        const a = Math.max(0, Math.ceil((xs[q]-x0)/cell - 0.5)), b = Math.min(nx-1, Math.floor((xs[q+1]-x0)/cell - 0.5));
+        for (let ix=a;ix<=b;ix++) occ[base+ix] = 1;
+      }
+    }
+    const at = (ix, iy, l) => ix < 0 || iy < 0 || ix >= nx || iy >= ny ? 0 : occ[(l*ny+iy)*nx+ix];
+    const cols = [];                       // x, y, zBottom, zTop
+    let n = 0;
+    for (const [k, zt] of contacts){
+      if (++n > 60000) break;
+      const ix = k % nx, iy = Math.floor(k/nx) % ny;
+      let l = Math.floor((zt - 0.3*dz)/dz), zb = 0;
+      if (l < 0) continue;
+      if (at(ix, iy, l)) l--;                                   // the overhanging body itself
+      let free = 0;
+      for (; l >= 0; l--){ if (at(ix, iy, l)){ zb = (l+1)*dz; break; } free++; }
+      if (zt - zb < 0.6 || free === 0) continue;
+      cols.push(x0+(ix+0.5)*cell, y0+(iy+0.5)*cell, zb, zt - 0.2);
+    }
+    const out = {type:o.type, cell, cols:new Float32Array(cols), branches:null, ovArea, vol:0, intVol:0, moves:0, intMoves:0, layers:0, mesh:null};
+    const nC = cols.length/4, h = o.h || 0.2, wS = 0.42;
+    if (!nC) { out.mesh = new Float32Array(0); return out; }
+    let zTopMax = 0, zBotMin = 1e9;
+    for (let q=0;q<nC;q++){ if (cols[4*q+3] > zTopMax) zTopMax = cols[4*q+3]; if (cols[4*q+2] < zBotMin) zBotMin = cols[4*q+2]; }
+    out.layers = Math.ceil((zTopMax - zBotMin)/h);
+    out.intVol = nC*cell*cell*2*h*0.8; out.intMoves = nC*2*cell/0.5/6;
+    const tri = [];
+    if (o.type !== 'tree'){
+      const dens = wS/2.5;
+      for (let q=0;q<nC;q++){
+        const x = cols[4*q], y = cols[4*q+1], zb = cols[4*q+2], zt = cols[4*q+3], hh = zt - zb, e = cell/2;
+        out.vol += cell*cell*hh*dens; out.moves += hh/h*cell/2.5/3;
+        const c8 = [[x-e,y-e],[x+e,y-e],[x+e,y+e],[x-e,y+e]];
+        for (let f=0;f<4;f++){ const a = c8[f], b = c8[(f+1)%4]; tri.push(a[0],a[1],zb, b[0],b[1],zb, b[0],b[1],zt, a[0],a[1],zb, b[0],b[1],zt, a[0],a[1],zt); }
+        tri.push(c8[0][0],c8[0][1],zt, c8[1][0],c8[1][1],zt, c8[2][0],c8[2][1],zt, c8[0][0],c8[0][1],zt, c8[2][0],c8[2][1],zt, c8[3][0],c8[3][1],zt);
+      }
+    } else {
+      // tips: one per ~5 mm bucket, then walk down level by level, pulling neighbours together
+      const tips = new Map();
+      for (let q=0;q<nC;q++){ const key = Math.floor(cols[4*q]/5)*4001 + Math.floor(cols[4*q+1]/5)*17 + Math.floor(cols[4*q+3]/dz)*1e7; if (!tips.has(key)) tips.set(key, q); }
+      const byLevel = new Map(); let cnt = 0;
+      for (const q of tips.values()){ if (++cnt > 500) break; const l = Math.max(0, Math.floor(cols[4*q+3]/dz)); (byLevel.get(l) || byLevel.set(l, []).get(l)).push(q); }
+      let nodes = []; const br = [];
+      const step = dz, rTip = 0.5, rMax = 4;
+      for (let l=nz-1;l>=0;l--){
+        const add = byLevel.get(l); if (add) for (const q of add) nodes.push({x:cols[4*q], y:cols[4*q+1], z:cols[4*q+3], r:rTip, alive:true});
+        if (!nodes.length) continue;
+        const zN = l*dz;
+        for (const a of nodes){
+          if (a.z <= zN + 1e-6) continue;
+          let best = null, bd = 18;
+          for (const b of nodes){ if (b === a || !b.alive) continue; const d = Math.hypot(b.x-a.x, b.y-a.y); if (d < bd){ bd = d; best = b; } }
+          let tx = a.x, ty = a.y;
+          if (best && bd > 1e-6){ const mv = Math.min(step, bd/2); tx += (best.x-a.x)/bd*mv; ty += (best.y-a.y)/bd*mv; }
+          const free = (X, Y) => l === 0 ? true : !at(Math.floor((X-x0)/cell), Math.floor((Y-y0)/cell), l-1) || false;
+          const freeHere = (X, Y) => !at(Math.floor((X-x0)/cell), Math.floor((Y-y0)/cell), Math.max(0, l-1));
+          let ok = freeHere(tx, ty);
+          if (!ok && freeHere(a.x, a.y)){ tx = a.x; ty = a.y; ok = true; }
+          if (!ok){ for (let d=0;d<8 && !ok;d++){ const X = a.x + Math.cos(d*Math.PI/4)*cell*1.5, Y = a.y + Math.sin(d*Math.PI/4)*cell*1.5; if (freeHere(X, Y)){ tx = X; ty = Y; ok = true; } } }
+          const r2 = Math.min(rMax, a.r + (a.z - zN)*0.05 + 0.02);
+          if (!ok && l > 0){ a.alive = false; a.done = true; continue; }
+          br.push(a.x, a.y, a.z, a.r, tx, ty, zN, r2);
+          a.x = tx; a.y = ty; a.z = zN; a.r = r2;
+        }
+        // merge
+        for (let p=0;p<nodes.length;p++){ const a = nodes[p]; if (!a.alive) continue;
+          for (let q=p+1;q<nodes.length;q++){ const b = nodes[q]; if (!b.alive) continue;
+            if (Math.hypot(a.x-b.x, a.y-b.y) < Math.max(1.2, (a.r+b.r)*0.6)){ a.x = (a.x+b.x)/2; a.y = (a.y+b.y)/2; a.r = Math.min(rMax, Math.sqrt(a.r*a.r + b.r*b.r)); b.alive = false; } } }
+        nodes = nodes.filter(a => a.alive);
+      }
+      out.branches = new Float32Array(br);
+      const S = 8;
+      for (let q=0;q<br.length;q+=8){
+        const hgt = br[q+2]-br[q+6], ra = (br[q+3]+br[q+7])/2, len = Math.hypot(br[q+4]-br[q], br[q+5]-br[q+1], hgt);
+        out.vol += len*2*Math.PI*ra*wS*(ra > 2.5 ? 1.5 : 1.15); out.moves += hgt/h*3;
+        for (let f=0;f<S;f++){
+          const a0 = f*2*Math.PI/S, a1 = (f+1)*2*Math.PI/S;
+          const p = (k, an) => [br[q+k]+Math.cos(an)*br[q+k+3], br[q+k+1]+Math.sin(an)*br[q+k+3], br[q+k+2]];
+          const A = p(0,a0), B = p(0,a1), C = p(4,a1), D = p(4,a0);
+          tri.push(...A, ...D, ...C, ...A, ...C, ...B);
+        }
+      }
+      out.vol *= 0.8;
+    }
+    out.mesh = new Float32Array(tri);
+    return out;
+  }
+  // Everything the estimate needs from the mesh for one layer height.
+  function analyze(pos, size, h, h0){
+    const R = (size[0] + size[1])/2*SQH + 2, ds = Math.min(2, Math.max(0.5, Math.max(size[0], size[1])/220));
+    const sl = slice(pos, {h, h0, H:size[2], R, ds});
+    const plan = samplePlan(sl, 300000);
+    const loops = loopsAt(pos, sl, plan.ks);
+    return {sl, plan, loops, sup:null};
+  }
   function cube(s){
     const h = s/2, v = [[-h,-h,0],[h,-h,0],[h,h,0],[-h,h,0],[-h,-h,s],[h,-h,s],[h,h,s],[-h,h,s]];
     const f = [[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]];
@@ -560,41 +1317,212 @@ const Core = (() => {
     return new Float32Array(p);
   }
 
-  return {MATS, DEF, parseSTL, parseOBJ, parse3MF, parseGcodeHeader, settle, stats, slice, sliceSegs, chain, estimate, cube};
+  return {DEF, TUNE, parseSTL, parseOBJ, parse3MF, parseGcodeHeader, read3MF, colorLayers, colorPlan, settle, slice, loopsAt, chain, samplePlan, analyze, estimate, cube, planeZ, layerCount, supports};
 })();
 /*CORE-END*/
 </script>
+<script>
+/* earcut 2.2.4, ISC License, Copyright (c) 2016, Mapbox */
+!function(e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define([],e):("undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:this).earcut=e()}(function(){return function r(x,i,u){function f(n,e){if(!i[n]){if(!x[n]){var t="function"==typeof require&&require;if(!e&&t)return t(n,!0);if(o)return o(n,!0);throw(e=new Error("Cannot find module '"+n+"'")).code="MODULE_NOT_FOUND",e}t=i[n]={exports:{}},x[n][0].call(t.exports,function(e){return f(x[n][1][e]||e)},t,t.exports,r,x,i,u)}return i[n].exports}for(var o="function"==typeof require&&require,e=0;e<u.length;e++)f(u[e]);return f}({1:[function(e,n,t){"use strict";function r(e,n,t){t=t||2;var r,x,i,u,f,o=n&&n.length,v=o?n[0]*t:e.length,p=s(e,0,v,t,!0),y=[];if(p&&p.next!==p.prev){if(o&&(p=function(e,n,t,r){var x,i,u,f,o=[];for(x=0,i=n.length;x<i;x++)f=n[x]*r,u=x<i-1?n[x+1]*r:e.length,(f=s(e,f,u,r,!1))===f.next&&(f.steiner=!0),o.push(function(e){var n=e,t=e;for(;(n.x<t.x||n.x===t.x&&n.y<t.y)&&(t=n),n=n.next,n!==e;);return t}(f));for(o.sort(c),x=0;x<o.length;x++)t=function(e,n){var t=function(e,n){var t,r=n,x=e.x,i=e.y,u=-1/0;do{if(i<=r.y&&i>=r.next.y&&r.next.y!==r.y){var f=r.x+(i-r.y)*(r.next.x-r.x)/(r.next.y-r.y);if(f<=x&&u<f&&(u=f,t=r.x<r.next.x?r:r.next,f===x))return t}}while(r=r.next,r!==n);if(!t)return null;var o,v=t,p=t.x,y=t.y,a=1/0;r=t;for(;x>=r.x&&r.x>=p&&x!==r.x&&D(i<y?x:u,i,p,y,i<y?u:x,i,r.x,r.y)&&(o=Math.abs(i-r.y)/(x-r.x),_(r,e)&&(o<a||o===a&&(r.x>t.x||r.x===t.x&&function(e,n){return E(e.prev,e,n.prev)<0&&E(n.next,e,e.next)<0}(t,r)))&&(t=r,a=o)),r=r.next,r!==v;);return t}(e,n);if(!t)return n;n=j(t,e);return q(n,n.next),q(t,t.next)}(o[x],t);return t}(e,n,p,t)),e.length>80*t){for(var a=r=e[0],l=x=e[1],h=t;h<v;h+=t)(i=e[h])<a&&(a=i),(u=e[h+1])<l&&(l=u),r<i&&(r=i),x<u&&(x=u);f=0!==(f=Math.max(r-a,x-l))?32767/f:0}O(p,y,t,a,l,f,0)}return y}function s(e,n,t,r,x){var i,u;if(x===0<d(e,n,t,r))for(i=n;i<t;i+=r)u=f(i,e[i],e[i+1],u);else for(i=t-r;n<=i;i-=r)u=f(i,e[i],e[i+1],u);return u&&N(u,u.next)&&(C(u),u=u.next),u}function q(e,n){if(!e)return e;n=n||e;var t,r=e;do{if(t=!1,r.steiner||!N(r,r.next)&&0!==E(r.prev,r,r.next))r=r.next;else{if(C(r),(r=n=r.prev)===r.next)break;t=!0}}while(t||r!==n);return n}function O(e,n,t,r,x,i,u){if(e){if(!u&&i){for(var f=e,o=r,v=x,p=i,y=f;0===y.z&&(y.z=k(y.x,y.y,o,v,p)),y.prevZ=y.prev,y.nextZ=y.next,(y=y.next)!==f;);y.prevZ.nextZ=null,y.prevZ=null;var a,l,h,s,c,d,Z,g,w=y,M=1;do{for(l=w,c=w=null,d=0;l;){for(d++,h=l,a=Z=0;a<M&&(Z++,h=h.nextZ);a++);for(g=M;0<Z||0<g&&h;)0!==Z&&(0===g||!h||l.z<=h.z)?(l=(s=l).nextZ,Z--):(h=(s=h).nextZ,g--),c?c.nextZ=s:w=s,s.prevZ=c,c=s;l=h}}while(c.nextZ=null,M*=2,1<d)}for(var b,m,z=e;e.prev!==e.next;)if(b=e.prev,m=e.next,i?function(e,n,t,r){var x=e.prev,i=e,u=e.next;if(0<=E(x,i,u))return;var f=x.x,o=i.x,v=u.x,p=x.y,y=i.y,a=u.y,l=f<o?f<v?f:v:o<v?o:v,h=p<y?p<a?p:a:y<a?y:a,s=o<f?v<f?f:v:v<o?o:v,c=y<p?a<p?p:a:a<y?y:a,d=k(l,h,n,t,r),Z=k(s,c,n,t,r),g=e.prevZ,w=e.nextZ;for(;g&&g.z>=d&&w&&w.z<=Z;){if(g.x>=l&&g.x<=s&&g.y>=h&&g.y<=c&&g!==x&&g!==u&&D(f,p,o,y,v,a,g.x,g.y)&&0<=E(g.prev,g,g.next))return;if(g=g.prevZ,w.x>=l&&w.x<=s&&w.y>=h&&w.y<=c&&w!==x&&w!==u&&D(f,p,o,y,v,a,w.x,w.y)&&0<=E(w.prev,w,w.next))return;w=w.nextZ}for(;g&&g.z>=d;){if(g.x>=l&&g.x<=s&&g.y>=h&&g.y<=c&&g!==x&&g!==u&&D(f,p,o,y,v,a,g.x,g.y)&&0<=E(g.prev,g,g.next))return;g=g.prevZ}for(;w&&w.z<=Z;){if(w.x>=l&&w.x<=s&&w.y>=h&&w.y<=c&&w!==x&&w!==u&&D(f,p,o,y,v,a,w.x,w.y)&&0<=E(w.prev,w,w.next))return;w=w.nextZ}return 1}(e,r,x,i):function(e){var n=e.prev,t=e,e=e.next;if(0<=E(n,t,e))return;var r=n.x,x=t.x,i=e.x,u=n.y,f=t.y,o=e.y,v=r<x?r<i?r:i:x<i?x:i,p=u<f?u<o?u:o:f<o?f:o,y=x<r?i<r?r:i:i<x?x:i,a=f<u?o<u?u:o:o<f?f:o,l=e.next;for(;l!==n;){if(l.x>=v&&l.x<=y&&l.y>=p&&l.y<=a&&D(r,u,x,f,i,o,l.x,l.y)&&0<=E(l.prev,l,l.next))return;l=l.next}return 1}(e))n.push(b.i/t|0),n.push(e.i/t|0),n.push(m.i/t|0),C(e),e=m.next,z=m.next;else if((e=m)===z){u?1===u?O(e=function(e,n,t){var r=e;do{var x=r.prev,i=r.next.next}while(!N(x,i)&&U(x,r,r.next,i)&&_(x,i)&&_(i,x)&&(n.push(x.i/t|0),n.push(r.i/t|0),n.push(i.i/t|0),C(r),C(r.next),r=e=i),r=r.next,r!==e);return q(r)}(q(e),n,t),n,t,r,x,i,2):2===u&&function(e,n,t,r,x,i){var u=e;do{for(var f,o=u.next.next;o!==u.prev;){if(u.i!==o.i&&function(e,n){return e.next.i!==n.i&&e.prev.i!==n.i&&!function(e,n){var t=e;do{if(t.i!==e.i&&t.next.i!==e.i&&t.i!==n.i&&t.next.i!==n.i&&U(t,t.next,e,n))return 1}while(t=t.next,t!==e);return}(e,n)&&(_(e,n)&&_(n,e)&&function(e,n){var t=e,r=!1,x=(e.x+n.x)/2,i=(e.y+n.y)/2;for(;t.y>i!=t.next.y>i&&t.next.y!==t.y&&x<(t.next.x-t.x)*(i-t.y)/(t.next.y-t.y)+t.x&&(r=!r),t=t.next,t!==e;);return r}(e,n)&&(E(e.prev,e,n.prev)||E(e,n.prev,n))||N(e,n)&&0<E(e.prev,e,e.next)&&0<E(n.prev,n,n.next))}(u,o))return f=j(u,o),u=q(u,u.next),f=q(f,f.next),O(u,n,t,r,x,i,0),O(f,n,t,r,x,i,0);o=o.next}}while(u=u.next,u!==e)}(e,n,t,r,x,i):O(q(e),n,t,r,x,i,1);break}}}function c(e,n){return e.x-n.x}function k(e,n,t,r,x){return(e=1431655765&((e=858993459&((e=252645135&((e=16711935&((e=(e-t)*x|0)|e<<8))|e<<4))|e<<2))|e<<1))|(n=1431655765&((n=858993459&((n=252645135&((n=16711935&((n=(n-r)*x|0)|n<<8))|n<<4))|n<<2))|n<<1))<<1}function D(e,n,t,r,x,i,u,f){return(e-u)*(i-f)<=(x-u)*(n-f)&&(t-u)*(n-f)<=(e-u)*(r-f)&&(x-u)*(r-f)<=(t-u)*(i-f)}function E(e,n,t){return(n.y-e.y)*(t.x-n.x)-(n.x-e.x)*(t.y-n.y)}function N(e,n){return e.x===n.x&&e.y===n.y}function U(e,n,t,r){var x=v(E(e,n,t)),i=v(E(e,n,r)),u=v(E(t,r,e)),f=v(E(t,r,n));return x!==i&&u!==f||(0===x&&o(e,t,n)||(0===i&&o(e,r,n)||(0===u&&o(t,e,r)||!(0!==f||!o(t,n,r)))))}function o(e,n,t){return n.x<=Math.max(e.x,t.x)&&n.x>=Math.min(e.x,t.x)&&n.y<=Math.max(e.y,t.y)&&n.y>=Math.min(e.y,t.y)}function v(e){return 0<e?1:e<0?-1:0}function _(e,n){return E(e.prev,e,e.next)<0?0<=E(e,n,e.next)&&0<=E(e,e.prev,n):E(e,n,e.prev)<0||E(e,e.next,n)<0}function j(e,n){var t=new u(e.i,e.x,e.y),r=new u(n.i,n.x,n.y),x=e.next,i=n.prev;return(e.next=n).prev=e,(t.next=x).prev=t,(r.next=t).prev=r,(i.next=r).prev=i,r}function f(e,n,t,r){e=new u(e,n,t);return r?(e.next=r.next,(e.prev=r).next.prev=e,r.next=e):(e.prev=e).next=e,e}function C(e){e.next.prev=e.prev,e.prev.next=e.next,e.prevZ&&(e.prevZ.nextZ=e.nextZ),e.nextZ&&(e.nextZ.prevZ=e.prevZ)}function u(e,n,t){this.i=e,this.x=n,this.y=t,this.prev=null,this.next=null,this.z=0,this.prevZ=null,this.nextZ=null,this.steiner=!1}function d(e,n,t,r){for(var x=0,i=n,u=t-r;i<t;i+=r)x+=(e[u]-e[i])*(e[i+1]+e[u+1]),u=i;return x}n.exports=r,(n.exports.default=r).deviation=function(e,n,t,r){var x=n&&n.length,i=x?n[0]*t:e.length,u=Math.abs(d(e,0,i,t));if(x)for(var f=0,o=n.length;f<o;f++){var v=n[f]*t,p=f<o-1?n[f+1]*t:e.length;u-=Math.abs(d(e,v,p,t))}for(var y=0,f=0;f<r.length;f+=3){var a=r[f]*t,l=r[f+1]*t,h=r[f+2]*t;y+=Math.abs((e[a]-e[h])*(e[1+l]-e[1+a])-(e[a]-e[l])*(e[1+h]-e[1+a]))}return 0===u&&0===y?0:Math.abs((y-u)/u)},r.flatten=function(e){for(var n=e[0][0].length,t={vertices:[],holes:[],dimensions:n},r=0,x=0;x<e.length;x++){for(var i=0;i<e[x].length;i++)for(var u=0;u<n;u++)t.vertices.push(e[x][i][u]);0<x&&(r+=e[x-1].length,t.holes.push(r))}return t}},{}]},{},[1])(1)});
 
+// ---------- scene: separate parts, cut, arrange ----------
+const Scene = (() => {
+  function bbox(p){
+    const b = [Infinity,Infinity,Infinity,-Infinity,-Infinity,-Infinity];
+    for (let i=0;i<p.length;i+=3) for (let j=0;j<3;j++){ const v = p[i+j]; if (v < b[j]) b[j] = v; if (v > b[3+j]) b[3+j] = v; }
+    return b;
+  }
+  // centre in x/y, sit on z = 0; returns the old centre
+  function normalize(p){
+    const b = bbox(p), cx = (b[0]+b[3])/2, cy = (b[1]+b[4])/2, z0 = b[2], q = new Float32Array(p.length);
+    for (let i=0;i<p.length;i+=3){ q[i] = p[i]-cx; q[i+1] = p[i+1]-cy; q[i+2] = p[i+2]-z0; }
+    return {pos:q, cx, cy, w:b[3]-b[0], d:b[4]-b[1], h:b[5]-b[2]};
+  }
+  // bodies that share no vertex become separate parts
+  function split(p, ext){
+    const n = p.length/9, key = new Map(), par = new Int32Array(n);
+    for (let i=0;i<n;i++) par[i] = i;
+    const find = a => { while (par[a] !== a){ par[a] = par[par[a]]; a = par[a]; } return a; };
+    for (let i=0;i<n;i++) for (let v=0;v<3;v++){
+      const o = i*9 + v*3, k = Math.round(p[o]*1e3) + ',' + Math.round(p[o+1]*1e3) + ',' + Math.round(p[o+2]*1e3);
+      const j = key.get(k); if (j === undefined) key.set(k, i); else { const a = find(i), b = find(j); if (a !== b) par[a] = b; }
+    }
+    const groups = new Map();
+    for (let i=0;i<n;i++){ const r = find(i); const g = groups.get(r); if (g) g.push(i); else groups.set(r, [i]); }
+    const out = [...groups.values()].filter(g => g.length >= 4).sort((a, b) => b.length - a.length).map(g => {
+      const q = new Float32Array(g.length*9), e = ext ? new Uint8Array(g.length) : null;
+      g.forEach((t, k) => { q.set(p.subarray(t*9, t*9+9), k*9); if (e) e[k] = ext[t]; }); return {pos:q, ext:e};
+    });
+    return out;
+  }
+  // keep the part below (or above) a horizontal plane, close the cut with a flat face
+  function cut(p, zc, keepAbove, ext){
+    const out = [], segs = [], sgn = keepAbove ? -1 : 1, oe = [], cnt = new Uint32Array(33);
+    if (ext) for (const e of ext) cnt[e]++;
+    let dom = 1; for (let e=1;e<33;e++) if (cnt[e] > cnt[dom]) dom = e;
+    const P = [[0,0,0],[0,0,0],[0,0,0]];
+    for (let i=0;i<p.length;i+=9){
+      let nIn = 0; const d = [0,0,0];
+      for (let v=0;v<3;v++){ P[v][0] = p[i+3*v]; P[v][1] = p[i+3*v+1]; P[v][2] = p[i+3*v+2]; d[v] = sgn*(P[v][2]-zc); if (d[v] <= 0) nIn++; }
+      const te = ext ? ext[i/9] : 0;
+      if (nIn === 3){ for (let v=0;v<3;v++) out.push(P[v][0], P[v][1], P[v][2]); oe.push(te); continue; }
+      if (nIn === 0) continue;
+      const poly = [], cutPts = [];
+      for (let v=0;v<3;v++){
+        const a = P[v], b = P[(v+1)%3], da = d[v], db = d[(v+1)%3];
+        if (da <= 0) poly.push(a);
+        if ((da <= 0) !== (db <= 0)){ const t = da/(da-db), q = [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, zc]; poly.push(q); cutPts.push(q); }
+      }
+      for (let k=1;k+1<poly.length;k++){ out.push(...poly[0], ...poly[k], ...poly[k+1]); oe.push(te); }
+      if (cutPts.length === 2){
+        const ux=P[1][0]-P[0][0],uy=P[1][1]-P[0][1],uz=P[1][2]-P[0][2], vx=P[2][0]-P[0][0],vy=P[2][1]-P[0][1],vz=P[2][2]-P[0][2];
+        const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz;
+        let [a, b] = cutPts; const dx = b[0]-a[0], dy = b[1]-a[1];
+        if (dx*ny - dy*nx < 0){ const t = a; a = b; b = t; }
+        segs.push(a[0], a[1], b[0], b[1], 0);
+      }
+    }
+    // cap: outer loops have positive area, holes negative
+    const loops = Core.chain(segs).map(l => { const xy = []; for (let i=0;i<l.length;i+=3) xy.push(l[i], l[i+1]); return xy; });
+    const area = l => { let s = 0; for (let i=0;i<l.length;i+=2){ const j = (i+2) % l.length; s += l[i]*l[j+1] - l[j]*l[i+1]; } return s/2; };
+    const inside = (x, y, l) => { let c = false; for (let i=0, j=l.length-2; i<l.length; j=i, i+=2){ if ((l[i+1] > y) !== (l[j+1] > y) && x < (l[j]-l[i])*(y-l[i+1])/(l[j+1]-l[i+1]) + l[i]) c = !c; } return c; };
+    // nesting depth decides: even depth is solid outline, odd depth is a hole in its parent
+    const L = loops.filter(l => l.length >= 6 && Math.abs(area(l)) > 1e-4).map(l => ({l, a:Math.abs(area(l)), depth:0, parent:null}));
+    L.sort((x, y) => y.a - x.a);
+    for (let i=0;i<L.length;i++) for (let j=0;j<i;j++){
+      if (inside(L[i].l[0], L[i].l[1], L[j].l)){ L[i].depth++; if (!L[i].parent || L[j].a < L[i].parent.a) L[i].parent = L[j]; }
+    }
+    const groups = L.filter(x => x.depth % 2 === 0).map(o => ({o, h:[]}));
+    for (const x of L) if (x.depth % 2 === 1 && x.parent){ const g = groups.find(g => g.o === x.parent); if (g) g.h.push(x.l); }
+    for (const g of groups){
+      const flat = g.o.l.slice(), hi = [];
+      for (const h of g.h){ hi.push(flat.length/2); flat.push(...h); }
+      const t = earcut(flat, hi);
+      for (let k=0;k<t.length;k+=3){
+        let a = t[k], b = t[k+1], c = t[k+2];
+        const s = (flat[2*b]-flat[2*a])*(flat[2*c+1]-flat[2*a+1]) - (flat[2*c]-flat[2*a])*(flat[2*b+1]-flat[2*a+1]);
+        if ((s > 0) === !!keepAbove){ const x = b; b = c; c = x; }   // face up for the lower part, down for the upper part
+        out.push(flat[2*a], flat[2*a+1], zc, flat[2*b], flat[2*b+1], zc, flat[2*c], flat[2*c+1], zc); oe.push(dom);
+      }
+    }
+    return {pos:new Float32Array(out), ext:ext ? Uint8Array.from(oe) : null};
+  }
+  function rotate(p, axis){
+    const q = new Float32Array(p.length);
+    for (let i=0;i<p.length;i+=3){
+      const x = p[i], y = p[i+1], z = p[i+2];
+      if (axis === 'x'){ q[i] = x; q[i+1] = -z; q[i+2] = y; }
+      else if (axis === 'y'){ q[i] = z; q[i+1] = y; q[i+2] = -x; }
+      else { q[i] = -y; q[i+1] = x; q[i+2] = z; }
+    }
+    return q;
+  }
+  // simple shelf packing, centred on the bed; parts keep their own size
+  function arrange(objs, W, D, gap){
+    gap = gap || 6;
+    const order = objs.map((o, i) => i).sort((a, b) => objs[b].d - objs[a].d);
+    const rows = []; let row = {items:[], w:0, d:0};
+    for (const i of order){
+      const o = objs[i];
+      if (row.items.length && row.w + gap + o.w > W){ rows.push(row); row = {items:[], w:0, d:0}; }
+      row.items.push(i); row.w += (row.items.length > 1 ? gap : 0) + o.w; row.d = Math.max(row.d, o.d);
+    }
+    if (row.items.length) rows.push(row);
+    const totD = rows.reduce((s, r) => s + r.d, 0) + gap*(rows.length-1);
+    let y = totD/2;
+    for (const r of rows){
+      let x = -r.w/2;
+      for (const i of r.items){ const o = objs[i]; o.x = x + o.w/2; o.y = y - r.d/2; x += o.w + gap; }
+      y -= r.d + gap;
+    }
+    return totD <= D && rows.every(r => r.w <= W);
+  }
+  return {bbox, normalize, split, cut, rotate, arrange};
+})();
+
+</script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const S = {pos:null, size:[0,0,0], st:null, stCos:null, layers:null, sliced:null, scale:1, noMesh:false};
-  const KEY = 'a1-sure-ayar-2';
-  const ids = ['sPreset','sLayer','sLw','sMat','sMode','sInfill','sPattern','sWalls','sTop','sBot','sSupport','sAngle','sBrim',
+  // ---------- printers: values taken from the printers' own slicer profiles ----------
+  const P = (h, top, bot, vIn, vSp, vSo, extra) => Object.assign({h, topL:top, botL:bot, vInner:vIn, vSparse:vSp, vSolid:vSo}, extra || {});
+  const PRINTERS = {
+    a1: {name:'Bambu Lab A1', bed:[256,256,256], prep:375, tl:1.6, sup:'tree', tChange:114, purge:250, towerA:216, maxColors:4, colorVia:'AMS lite',
+      base:{vOuter:200, vTop:200, vFirst:50, vFirstInf:105, vTravel:700, vBridge:50, aNorm:6000, aOuter:5000, aInner:0, aFirst:500, aTop:2000, aTravel:10000, jerk:9,
+        limAExt:12000, limATrav:9000, limVxy:500, limVz:30, limAz:1500, limVe:30, limAe:5000, retLen:0.8, retSpeed:30, zHop:0.4, h0:0.2, tlCredit:1.6, defMat:1},
+      presets:[['0,08 mm Extra Fine', P(0.08,10,7,350,450,350)], ['0,12 mm Fine', P(0.12,5,5,350,430,350)], ['0,16 mm Optimal', P(0.16,7,4,300,330,300)],
+        ['0,20 mm Standard', P(0.2,5,3,300,270,250)], ['0,20 mm Strength', P(0.2,5,3,300,270,250,{walls:6, infill:25, vOuter:60})],
+        ['0,24 mm Draft', P(0.24,5,3,230,230,230)], ['0,28 mm Extra Draft', P(0.28,4,3,200,200,200)]], def:3,
+      mats:[['Bambu PLA Basic',21,1.26,0.98,6,20], ['Bambu PLA Matte',22,1.32,0.98,6,20], ['Genel PLA',12,1.24,0.98,8,20], ['Bambu PETG HF',18,1.28,0.94,7,10],
+        ['Bambu PETG Basic',13,1.25,0.94,12,10], ['Bambu ABS',16,1.04,0.95,12,20], ['Bambu TPU 95A',3.6,1.22,1,8,10]]},
+    k1: {name:'Creality K1', bed:[220,220,250], prep:300, tl:0, sup:'normal', tChange:135, purge:325, maxColors:4, colorVia:'CFS',
+      base:{vOuter:200, vTop:200, vFirst:60, vFirstInf:60, vTravel:500, vBridge:30, aNorm:10000, aOuter:5000, aInner:5000, aFirst:1000, aTop:2000, aTravel:10000, jerk:20,
+        limAExt:20000, limATrav:20000, limVxy:800, limVz:20, limAz:300, limVe:100, limAe:5000, retLen:0.8, retSpeed:40, zHop:0.4, h0:0.2},
+      presets:[['0,08 mm SuperDetail', P(0.08,10,7,350,350,250)], ['0,12 mm Fine', P(0.12,5,3,300,500,300,{walls:3, aNorm:12000, aFirst:500, aTop:5000, vFirstInf:105, h0:0.12})],
+        ['0,16 mm Optimal', P(0.16,5,4,300,300,250)], ['0,20 mm Standard', P(0.2,5,3,300,270,250)], ['0,24 mm Draft', P(0.24,5,3,300,250,250)]], def:3,
+      mats:[['Genel PLA',18,1.24,0.98,8,20], ['Genel PLA High Speed',23,1.24,0.98,8,20], ['Genel PETG',9,1.27,0.95,12,20], ['Genel ABS',14,1.04,0.926,5,20], ['Genel TPU',3.5,1.24,1,5,10]]},
+    u1: {name:'Snapmaker U1', bed:[270,270,270], prep:300, tl:0, sup:'tree', tChange:12, purge:45, maxColors:4, colorVia:'4 baskı kafası',
+      base:{vOuter:200, vTop:200, vFirst:50, vFirstInf:105, vTravel:500, vBridge:50, aNorm:10000, aOuter:5000, aInner:0, aFirst:500, aTop:2000, aTravel:0, jerk:9,
+        limAExt:20000, limATrav:20000, limVxy:500, limVz:20, limAz:500, limVe:30, limAe:5000, retLen:1.5, retSpeed:30, zHop:0.4, h0:0.2},
+      presets:[['0,08 mm Extra Fine', P(0.08,10,7,350,450,350,{vOuter:100})], ['0,12 mm Fine', P(0.12,5,5,350,430,350)], ['0,16 mm Optimal', P(0.16,7,4,300,330,300)],
+        ['0,20 mm Standard', P(0.2,5,3,300,270,250,{h0:0.25})], ['0,20 mm Strength', P(0.2,5,3,300,270,250,{walls:6, infill:25, vOuter:60})],
+        ['0,24 mm Draft', P(0.24,5,3,230,230,230)], ['0,28 mm Extra Draft', P(0.28,4,3,200,200,200)]], def:3,
+      mats:[['Snapmaker PLA',14,1.24,0.98,8,15], ['Snapmaker PLA SnapSpeed',20,1.24,0.966,4,20], ['Snapmaker PETG',10,1.25,0.95,8,20], ['Snapmaker ABS',8,1.04,0.95,3,20], ['Snapmaker TPU',2.8,1.24,1,8,10]]}
+  };
+  const S = {pos:null, size:[0,0,0], G:null, Gkey:'', sup:null, supKey:'', sliced:null, scale:1, noMesh:false, view:'model', pvExt:100, hidden:{}, vol:0};
+  const KEY = 'baski-sure-ayar-7';
+  const ids = ['sPrinter','sPreset','sLayer','sLw','sMat','sMode','sInfill','sPattern','sWalls','sTop','sBot','sSupport','sSupType','sAngle','sBrim','sColors','sColorPct','sTChange','sPurge',
     'vOut','vIn','vSparse','vSolid','vTop','vFirst','vFirstInf','vTravel','aNorm','aOut','sFlow','sMinLayer','sCopies','sPrice','sCorr','sPrep'];
-  const defaults = {}; for (const id of ids){ const el = $(id); defaults[id] = el.type === 'checkbox' ? el.checked : el.value; }
-
-  function applyPrefs(p){ for (const id of ids) if (id in p){ const el = $(id); if (el.type === 'checkbox') el.checked = !!p[id]; else el.value = p[id]; } }
-  function loadPrefs(){ try { applyPrefs(JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {} }
-  function savePrefs(){
-    try { const p = {}; for (const id of ids){ const el = $(id); p[id] = el.type === 'checkbox' ? el.checked : el.value; }
-      localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {}
-  }
+  const printer = () => PRINTERS[$('sPrinter').value] || PRINTERS.a1;
+  const setV = (id, v) => { const el = $(id); if (el.type === 'checkbox') el.checked = !!v; else el.value = v; };
+  const getV = id => { const el = $(id); return el.type === 'checkbox' ? el.checked : el.value; };
+  function savePrefs(){ try { const p = {hidden:S.hidden}; for (const id of ids) p[id] = getV(id); localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
   const num = (id, d, lo, hi) => { const v = parseFloat($(id).value); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
   const tr = (n, d=0) => n.toLocaleString('tr-TR', {minimumFractionDigits:d, maximumFractionDigits:d});
-  const autoTop = h => Math.max(3, Math.ceil(1.0/h - 1e-9)), autoBot = h => Math.max(3, Math.ceil(0.6/h - 1e-9));
+
+  function fillPrinter(keepMat){
+    const pr = printer();
+    $('sPreset').innerHTML = '<option value="">Özel</option>' + pr.presets.map((p, i) => `<option value="${i}">${p[0]}</option>`).join('');
+    $('sMat').innerHTML = pr.mats.map((m, i) => `<option value="${i}">${m[0]}</option>`).join('');
+    if (!keepMat) $('sMat').value = pr.base.defMat || 0;
+    $('prepLabel').textContent = `Hazırlık süresini dahil et (yaklaşık ${Math.round(pr.prep/60)} dk)`;
+    $('colorNote').textContent = 'A1, AMS lite ile her renk değişiminde filamenti geri çekip yenisini yükler; süre ve atık bu yüzden yüksektir. Model sadece kısmen renkliyse oranı düşür.';
+  }
+  function applyPreset(i){
+    const pr = printer(), p = pr.presets[i]; if (!p) return;
+    const v = Object.assign({walls:2, infill:15}, pr.base, p[1]);
+    setV('sLayer', v.h); setV('sWalls', v.walls); setV('sInfill', v.infill); setV('sTop', v.topL); setV('sBot', v.botL); setV('sPattern', 'grid'); setV('sLw', 0.42);
+    setV('vOut', v.vOuter); setV('vIn', v.vInner); setV('vSparse', v.vSparse); setV('vSolid', v.vSolid); setV('vTop', v.vTop); setV('vFirst', v.vFirst); setV('vFirstInf', v.vFirstInf);
+    setV('vTravel', v.vTravel); setV('aNorm', v.aNorm); setV('aOut', v.aOuter);
+    S.hidden = {aInner:v.aInner, aFirst:v.aFirst, aTop:v.aTop, h0:v.h0};
+    $('sPreset').value = i; $('infillVal').textContent = $('sInfill').value;
+  }
+  function applyMaterial(){ const m = printer().mats[+$('sMat').value]; if (m){ setV('sFlow', m[1]); setV('sMinLayer', m[4]); } }
+  function applyPrinterDefaults(){
+    const pr = printer(); fillPrinter(false); applyPreset(pr.def); applyMaterial();
+    setV('sSupType', pr.sup); setV('sTChange', pr.tChange); setV('sPurge', pr.purge);
+  }
 
   function settings(){
-    return {
-      h:parseFloat($('sLayer').value), lw:num('sLw',0.42,0.3,0.8), walls:Math.round(num('sWalls',2,1,12)),
-      topL:Math.round(num('sTop',5,0,30)), botL:Math.round(num('sBot',3,0,30)),
+    const pr = printer(), m = pr.mats[+$('sMat').value] || pr.mats[0], h = parseFloat($('sLayer').value), lw = num('sLw',0.42,0.3,0.8);
+    const hid = S.hidden || {};
+    const colors = parseInt($('sColors').value, 10) || 1, N = S.G ? S.G.sl.N : 0;
+    const cl = colors > 1 ? Math.round(N*num('sColorPct',100,1,100)/100) : 0, changes = colors > 1 ? cl*(colors-1) : 0;
+    return Object.assign({}, pr.base, {
+      h, h0: Math.max(h, hid.h0 || pr.base.h0) > 0.3 ? h : (hid.h0 && hid.h0 >= h ? hid.h0 : Math.max(h, pr.base.h0)),
+      wOuter:lw, wInner:lw+0.03, wSparse:lw+0.03, wSolid:lw, wTop:lw, wFirst:lw+0.08, wSupport:lw,
+      walls:Math.round(num('sWalls',2,1,12)), topL:Math.round(num('sTop',5,0,30)), botL:Math.round(num('sBot',3,0,30)),
       infill:num('sInfill',15,0,100)/100, pattern:$('sPattern').value, mode:parseFloat($('sMode').value) || 1,
-      vOut:num('vOut',200,10,500), vIn:num('vIn',300,10,500), vSparse:num('vSparse',270,10,500), vSolid:num('vSolid',250,10,500),
-      vTop:num('vTop',200,10,500), vFirst:num('vFirst',50,5,300), vFirstInf:num('vFirstInf',105,5,300), vTravel:num('vTravel',500,50,1000),
-      aNorm:num('aNorm',6000,500,20000), aOut:num('aOut',5000,500,20000), flow:num('sFlow',21,1,40), minLayer:num('sMinLayer',4,0,60),
-      dens:(Core.MATS[$('sMat').value] || Core.MATS.PLA).dens, copies:Math.round(num('sCopies',1,1,100)),
-      support:$('sSupport').checked, angle:num('sAngle',30,5,80), brim:num('sBrim',0,0,20), prep:$('sPrep').checked, corr:num('sCorr',100,50,200)/100
-    };
+      vOuter:num('vOut',200,10,600), vInner:num('vIn',300,10,600), vSparse:num('vSparse',270,10,600), vSolid:num('vSolid',250,10,600),
+      vTop:num('vTop',200,10,600), vFirst:num('vFirst',50,5,300), vFirstInf:num('vFirstInf',105,5,300), vTravel:num('vTravel',700,50,1000),
+      aNorm:num('aNorm',6000,500,20000), aOuter:num('aOut',5000,500,20000),
+      aInner: hid.aInner !== undefined ? hid.aInner : pr.base.aInner, aFirst: hid.aFirst || pr.base.aFirst, aTop: hid.aTop || pr.base.aTop,
+      flow:num('sFlow',21,1,40), minLayer:num('sMinLayer',6,0,60), dens:m[2], flowRatio:m[3], minSpeed:m[5],
+      copies:Math.round(num('sCopies',1,1,100)), corr:num('sCorr',100,50,200)/100*calFactor($('sPrinter').value),
+      prep:$('sPrep').checked ? pr.prep : 0, timelapse:0,
+      support:$('sSupport').checked, supType:$('sSupType').value, angle:num('sAngle',30,5,80), brim:num('sBrim',0,0,20),
+      colors, changes, tChange:num('sTChange',114,0,600), purgeVol:num('sPurge',250,0,2000), towerVol: colors > 1 ? cl*h*(pr.towerA || 216) : 0
+    });
   }
 
   function fmtTime(sec){
@@ -603,39 +1531,175 @@ const Core = (() => {
   }
   function fmtTimeText(sec){ const m = Math.round(sec/60), h = Math.floor(m/60); return h ? `${h} sa ${m%60} dk` : `${m} dk`; }
 
+
+  // ---------- calibration from the user's own slicer times ----------
+  const CKEY = 'baski-sure-kal-1';
+  const calLoad = () => { try { return JSON.parse(localStorage.getItem(CKEY) || '{}'); } catch (e) { return {}; } };
+  let CAL = calLoad();
+  const calStore = () => { try { localStorage.setItem(CKEY, JSON.stringify(CAL)); } catch (e) {} };
+  const median = a => { const r = [...a].sort((x, y) => x - y), n = r.length; return n % 2 ? r[(n-1)/2] : (r[n/2-1] + r[n/2])/2; };
+  function calFactor(id){
+    const L = (CAL[id] || []).filter(x => x.ref > 0 && x.raw > 0).slice(-15); if (!L.length) return 1;
+    return Math.min(2, Math.max(0.5, Math.exp(median(L.map(x => Math.log(x.ref/x.raw))))));
+  }
+  function calGFactor(id){
+    const L = (CAL[id] || []).filter(x => x.refG > 0 && x.rawG > 0).slice(-15); if (!L.length) return 1;
+    return Math.min(1.5, Math.max(0.67, Math.exp(median(L.map(x => Math.log(x.refG/x.rawG))))));
+  }
+  function addSample(name, refSec, auto, refG){
+    if (!S.G || !(refSec > 0 || refG > 0)) return false;
+    const s = Object.assign(settings(), {corr:1, prep:0, timelapse:0});
+    const e = Core.estimate(S.G, s); if (!(e.print > 0)) return false;
+    const id = $('sPrinter').value, L = CAL[id] || (CAL[id] = []);
+    const i = L.findIndex(x => x.name === name); if (i >= 0) L.splice(i, 1);
+    const P = e.parts, mat = printer().mats[+$('sMat').value];
+    L.push({name, raw:Math.round(e.print), ref:Math.round(refSec || 0), rawG:+e.grams.toFixed(2), refG:+(refG || 0), auto:!!auto, t:Date.now(),
+      info:{size:S.size.map(x => +x.toFixed(1)), vol:+(S.vol/1000).toFixed(2), tris:S.pos.length/9, layers:S.G.sl.N, h:s.h, h0:s.h0, walls:s.walls, top:s.topL, bot:s.botL,
+        infill:Math.round(s.infill*100), pattern:s.pattern, support:s.support ? s.supType : 'yok', angle:s.angle, brim:s.brim, mat:mat ? mat[0] : '', minLayer:s.minLayer, flow:s.flow,
+        speeds:[s.vOuter, s.vInner, s.vSparse, s.vSolid, s.vTop, s.vFirst, s.vFirstInf, s.vTravel].join('/'), mode:s.mode,
+        parts:Object.fromEntries(Object.entries(P).map(([k, x]) => [k, Math.round(x)])), gModel:+e.gramsModel.toFixed(2), gSup:+e.gramsSupport.toFixed(2)}});
+    if (L.length > 40) L.shift();
+    calStore(); renderCal(); recalc(); return true;
+  }
+  const pct = (a, b) => (a > b ? '+' : '−') + '%' + tr(Math.abs(a/b - 1)*100);
+  function renderCal(){
+    const id = $('sPrinter').value, L = CAL[id] || [], f = calFactor(id), g = calGFactor(id);
+    $('calNote').textContent = L.length ? `${L.length} Bambu sonucuyla ayarlandı (süre ${f >= 1 ? '+' : '−'}%${tr(Math.abs(f-1)*100)}, gram ${g >= 1 ? '+' : '−'}%${tr(Math.abs(g-1)*100)}).` : '';
+    $('calList').innerHTML = L.length ? L.map((x, i) => `<div class="calrow"><span>${x.name.replace(/[<&>]/g, '')}: ` +
+      (x.ref ? `Bambu ${fmtTimeText(x.ref)}, uygulama ${fmtTimeText(x.raw)} (${pct(x.raw, x.ref)})` : '') +
+      (x.refG ? `${x.ref ? '; ' : ''}Bambu ${tr(x.refG, 1)} g, uygulama ${tr(x.rawG, 1)} g (${pct(x.rawG, x.refG)})` : '') +
+      `</span><button class="btn" type="button" data-i="${i}" aria-label="Sil">×</button></div>`).join('') +
+      '<button class="btn" type="button" id="calClear" style="margin-top:8px;width:100%">Bütün kayıtları temizle</button>' : '<p class="note">Henüz kayıt yok.</p>';
+    $('calCopy').hidden = !L.length;
+  }
+  function calDump(){
+    const L = CAL[$('sPrinter').value] || [];
+    return ['A1 süre verisi (' + L.length + ' model). Süreler saniye, timelapse ve hazırlık hariç.'].concat(L.map(x => {
+      const n = x.info || {};
+      return [`MODEL ${x.name}`, `bambu: ${x.ref || '-'} sn, ${x.refG || '-'} g | uygulama: ${x.raw} sn, ${x.rawG} g`,
+        `boyut ${(n.size || []).join('x')} mm, hacim ${n.vol} cm3, ${n.tris} üçgen, ${n.layers} katman`,
+        `ayar: katman ${n.h}/${n.h0}, duvar ${n.walls}, üst ${n.top}, alt ${n.bot}, dolgu %${n.infill} ${n.pattern}, destek ${n.support} ${n.angle}°, kenarlık ${n.brim}, ${n.mat}, minkatman ${n.minLayer}, akış ${n.flow}, hız ${n.speeds}, mod ${n.mode}`,
+        `parçalar: ${JSON.stringify(n.parts || {})}, model ${n.gModel} g, destek ${n.gSup} g`].join('\n');
+    })).join('\n\n');
+  }
+  $('calCopy').addEventListener('click', async () => {
+    const t = calDump(), ta = $('calText'); ta.value = t; ta.hidden = false;
+    try { await navigator.clipboard.writeText(t); $('calCopy').textContent = 'Kopyalandı, Claude\'a yapıştırabilirsin'; }
+    catch (e) { ta.focus(); ta.select(); $('calCopy').textContent = 'Kutudaki metni seçip kopyala'; }
+    setTimeout(() => { $('calCopy').textContent = 'Verileri kopyala (Claude\'a göndermek için)'; }, 4000);
+  });
+  $('calList').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return; const id = $('sPrinter').value;
+    if (b.id === 'calClear') CAL[id] = []; else if (b.dataset.i !== undefined) (CAL[id] || []).splice(+b.dataset.i, 1);
+    calStore(); renderCal(); recalc();
+  });
+  $('calSave').addEventListener('click', () => {
+    const sec = (parseFloat($('calH').value) || 0)*3600 + (parseFloat($('calM').value) || 0)*60 + (parseFloat($('calS').value) || 0);
+    const g = parseFloat(String($('calG').value).replace(',', '.')) || 0;
+    if (!(sec > 0) && !(g > 0)) { fail('Önce Bambu Studio\'daki süreyi ya da filament gramını yaz.'); return; }
+    $('error').hidden = true;
+    if (addSample(S.fileName || 'Örnek küp', sec, false, g)) for (const id of ['calH','calM','calS','calG']) $(id).value = '';
+  });
+
+  // settings saved inside a Bambu/Orca project
+  function ensureOpt(id, val){ const el = $(id), v = String(val); if (![...el.options].some(o => o.value === v)){ const o = document.createElement('option'); o.value = v; o.textContent = tr(+val, 2) + ' mm'; el.appendChild(o); } el.value = v; }
+  function applyProject(c){
+    const v = k => { let x = c[k]; if (Array.isArray(x)) x = x[0]; return x === undefined || x === null || x === '' ? null : String(x); };
+    const n = k => { const x = v(k); if (x === null) return null; const f = parseFloat(x); return isFinite(f) ? f : null; };
+    const model = v('printer_model') || v('printer_settings_id') || '';
+    const pid = /U1/i.test(model) ? 'u1' : /K1/i.test(model) ? 'k1' : /A1/i.test(model) ? 'a1' : null;
+    if (pid === 'a1' && pid !== $('sPrinter').value){ $('sPrinter').value = pid; applyPrinterDefaults(); setGrid(); }
+    const set = (id, x) => { if (x !== null && x !== undefined && x === x) setV(id, x); };
+    const h = n('layer_height'); if (h) ensureOpt('sLayer', h);
+    const h0 = n('initial_layer_print_height'); if (h0) S.hidden.h0 = h0;
+    set('sLw', n('outer_wall_line_width') || n('line_width'));
+    set('sWalls', n('wall_loops')); set('sTop', n('top_shell_layers')); set('sBot', n('bottom_shell_layers'));
+    set('sInfill', n('sparse_infill_density'));
+    const pat = (v('sparse_infill_pattern') || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const PM = {grid:'grid', crosshatch:'grid', gyroid:'gyroid', honeycomb:'honeycomb', '3dhoneycomb':'honeycomb', cubic:'cubic', adaptivecubic:'cubic', supportcubic:'cubic', triangles:'triangles', trihexagon:'triangles', zigzag:'lines', line:'lines', rectilinear:'lines', alignedrectilinear:'lines', lightning:'lines', concentric:'lines'};
+    if (PM[pat]) setV('sPattern', PM[pat]);
+    set('vOut', n('outer_wall_speed')); set('vIn', n('inner_wall_speed')); set('vSparse', n('sparse_infill_speed')); set('vSolid', n('internal_solid_infill_speed'));
+    set('vTop', n('top_surface_speed')); set('vFirst', n('initial_layer_speed')); set('vFirstInf', n('initial_layer_infill_speed')); set('vTravel', n('travel_speed'));
+    set('aNorm', n('default_acceleration')); set('aOut', n('outer_wall_acceleration'));
+    if (n('inner_wall_acceleration') !== null) S.hidden.aInner = n('inner_wall_acceleration');
+    if (n('initial_layer_acceleration')) S.hidden.aFirst = n('initial_layer_acceleration');
+    if (n('top_surface_acceleration')) S.hidden.aTop = n('top_surface_acceleration');
+    const fid = (v('filament_settings_id') || '').toLowerCase();
+    if (fid){ const mi = printer().mats.findIndex(m => fid.includes(m[0].toLowerCase().replace('genel ', 'generic '))); if (mi >= 0) $('sMat').value = mi; }
+    set('sFlow', n('filament_max_volumetric_speed')); set('sMinLayer', n('slow_down_layer_time'));
+    if (v('enable_support') !== null) setV('sSupport', v('enable_support') === '1' || v('enable_support') === 'true');
+    const st = (v('support_type') || '').toLowerCase(); if (st) setV('sSupType', st.includes('tree') ? 'tree' : 'normal');
+    const sa = n('support_threshold_angle'); if (sa) setV('sAngle', sa);
+    const bt = (v('brim_type') || '').toLowerCase(); if (bt) setV('sBrim', bt.includes('no') || bt.includes('auto') ? 0 : (n('brim_width') || 0));
+    $('sPreset').value = ''; $('infillVal').textContent = $('sInfill').value;
+  }
+
   // ---------- 3D view ----------
-  const cv = $('view'); let gl = null, prog, buf, gridBuf, gridN = 0, triN = 0;
-  const cam = {th:-0.9, ph:0.5, dist:100, tz:10}; let clipZ = 1e9, stripeH = 0.2;
+  const cv = $('view'); let gl = null, prog, buf, nzBuf, colBuf, supBuf, gridBuf, quadBuf, tex, gridN = 0, triN = 0, supN = 0, texReady = false;
+  const cam = {th:-0.9, ph:0.5, dist:100, tx:0, ty:0, tz:10}; let clipZ = 1e9, stripeH = 0.2, cutZ = 0;
   function initGL(){
     gl = cv.getContext('webgl2', {antialias:true, alpha:true});
     if (!gl){ cv.hidden = true; return; }
     const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); return s; };
     prog = gl.createProgram();
     gl.attachShader(prog, sh(gl.VERTEX_SHADER, `#version 300 es
-      in vec3 p; uniform mat4 mvp; uniform mat4 mv; out vec3 vp; out float wz;
-      void main(){ vp = (mv*vec4(p,1.)).xyz; wz = p.z; gl_Position = mvp*vec4(p,1.); }`));
+      in vec3 p; in float nzA; in vec3 colA; uniform mat4 mvp; uniform mat4 mv; uniform vec3 off; out vec3 vp; out vec3 wp; out float nz; out vec3 vc;
+      void main(){ vc = colA; vec3 q = p + off; vp = (mv*vec4(q,1.)).xyz; wp = q; nz = nzA; gl_Position = mvp*vec4(q,1.); }`));
     gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `#version 300 es
-      precision highp float; in vec3 vp; in float wz; uniform vec4 col; uniform float flat_; uniform float clipZ; uniform float lh; out vec4 o;
-      void main(){ if (flat_ > .5){ o = col; return; }
-        if (wz > clipZ) discard;
+      precision highp float; in vec3 vp; in vec3 wp; in float nz; in vec3 vc; uniform float useCol; uniform vec4 col; uniform int kind; uniform int mode; uniform float clipZ; uniform float lh; uniform float cosT; uniform float ext; uniform float selT; uniform vec2 texC; uniform sampler2D tex; out vec4 o;
+      void main(){
+        if (kind == 2){ o = col; return; }
+        if (kind == 3){ vec4 t = texture(tex, vec2((wp.x-texC.x)/ext + .5, .5 - (wp.y-texC.y)/ext)); if (t.a < .12) discard; o = vec4(t.rgb, 1.); return; }
+        if (wp.z > clipZ) discard;
         vec3 n = normalize(cross(dFdx(vp), dFdy(vp)));
-        float l = .38 + .62*abs(dot(n, normalize(vec3(.35,.45,.82))));
-        float u = wz/lh + .5, s = fract(u), e = min(s, 1. - s)*2.;
-        float stripe = mix(1., .74 + .26*smoothstep(0., .5, e), clamp(1. - fwidth(u)*1.6, 0., 1.));
-        o = vec4(col.rgb*l*stripe, 1.); }`));
-    gl.bindAttribLocation(prog, 0, 'p');
+        float l = .4 + .6*abs(dot(n, normalize(vec3(.35,.45,.82))));
+        vec3 base = vec3(.22,.72,.52); float st = 0.;
+        if (kind == 1){ base = vec3(.17,.71,.66); st = 1.; }
+        else if (mode == 1){ base = (nz > .7 || (nz < -.7 && wp.z < .05)) ? vec3(.29,.66,.91) : vec3(.95,.55,.16); st = 1.; }
+        else if (useCol > .5){ base = vc*.86 + .14; if (selT > .5) base = mix(vc, vec3(.79,.64,.35), .55); }
+        else if (nz < -cosT && wp.z > .3) base = vec3(.96,.62,.12);
+        else if (selT > .5) base = vec3(.79,.64,.35);
+        float u = wp.z/lh + .5, s = fract(u), e = min(s, 1. - s)*2.;
+        float stripe = mix(1., .72 + .28*smoothstep(0., .5, e), st*clamp(1. - fwidth(u)*1.6, 0., 1.));
+        o = vec4(base*l*stripe, 1.); }`));
+    gl.bindAttribLocation(prog, 0, 'p'); gl.bindAttribLocation(prog, 1, 'nzA'); gl.bindAttribLocation(prog, 2, 'colA');
     gl.linkProgram(prog); gl.useProgram(prog);
-    buf = gl.createBuffer(); gridBuf = gl.createBuffer();
-    const g = []; for (let i=-128;i<=128;i+=32){ g.push(i,-128,0, i,128,0, -128,i,0, 128,i,0); }
-    gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(g), gl.STATIC_DRAW); gridN = g.length/3;
-    gl.enableVertexAttribArray(0);
+    buf = gl.createBuffer(); nzBuf = gl.createBuffer(); colBuf = gl.createBuffer(); supBuf = gl.createBuffer(); gridBuf = gl.createBuffer(); quadBuf = gl.createBuffer(); tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.enable(gl.DEPTH_TEST);
   }
-  function upload(){
+  function setGrid(){
+    if (!gl) return; const b = printer().bed, g = [], hx = b[0]/2, hy = b[1]/2, st = 32;
+    for (let x=-hx;x<=hx+0.1;x+=st) g.push(x,-hy,0, x,hy,0);
+    for (let y=-hy;y<=hy+0.1;y+=st) g.push(-hx,y,0, hx,y,0);
+    g.push(hx,-hy,0, hx,hy,0, -hx,hy,0, hx,hy,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(g), gl.STATIC_DRAW); gridN = g.length/3;
+  }
+  function upload(resetCam){
     if (!gl) return;
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, S.pos, gl.STATIC_DRAW); triN = S.pos.length/3;
-    const r = Math.max(15, Math.hypot(S.size[0], S.size[1], S.size[2])/2);
-    cam.dist = r*2.7; cam.tz = S.size[2]/2;
+    const p = S.pos, n = p.length/9, nzv = new Float32Array(n*3);
+    for (let i=0;i<n;i++){
+      const o = i*9, ux=p[o+3]-p[o], uy=p[o+4]-p[o+1], uz=p[o+5]-p[o+2], vx=p[o+6]-p[o], vy=p[o+7]-p[o+1], vz=p[o+8]-p[o+2];
+      const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx, l = Math.hypot(nx,ny,nz) || 1, v = nz/l;
+      nzv[i*3] = v; nzv[i*3+1] = v; nzv[i*3+2] = v;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, p, gl.STATIC_DRAW); triN = p.length/3;
+    gl.bindBuffer(gl.ARRAY_BUFFER, nzBuf); gl.bufferData(gl.ARRAY_BUFFER, nzv, gl.STATIC_DRAW);
+    // filament colours per vertex
+    S.useCol = !!S.palette;
+    if (S.useCol){
+      const cv3 = new Uint8Array(n*9); let t = 0;
+      for (const o of S.objs){ const ex = o.ext, m = o.pos.length/9;
+        for (let i=0;i<m;i++, t++){ const c = S.palette[(ex ? ex[i] : 1) - 1] || [200,200,200]; for (let v=0;v<3;v++){ cv3[t*9+v*3] = c[0]; cv3[t*9+v*3+1] = c[1]; cv3[t*9+v*3+2] = c[2]; } } }
+      gl.bindBuffer(gl.ARRAY_BUFFER, colBuf); gl.bufferData(gl.ARRAY_BUFFER, cv3, gl.STATIC_DRAW);
+    }
+    if (resetCam){ const r = Math.max(15, Math.hypot(S.size[0], S.size[1], S.size[2])/2); cam.dist = r*2.7; }
+    cam.tx = S.cA[0]; cam.ty = S.cA[1]; cam.tz = S.size[2]/2;
+  }
+  function uploadSup(){
+    if (!gl) return; const m = S.sup && S.sup.mesh ? S.sup.mesh : new Float32Array(0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, supBuf); gl.bufferData(gl.ARRAY_BUFFER, m, gl.STATIC_DRAW); supN = m.length/3;
   }
   function mul(a, b){ const r = new Float32Array(16);
     for (let c=0;c<4;c++) for (let rr=0;rr<4;rr++){ let s = 0; for (let k=0;k<4;k++) s += a[k*4+rr]*b[c*4+k]; r[c*4+rr] = s; } return r; }
@@ -645,36 +1709,63 @@ const Core = (() => {
     if (!w || !h) return;
     if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
     gl.viewport(0, 0, w, h); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    const cp = Math.cos(cam.ph), ex = cam.dist*cp*Math.cos(cam.th), ey = cam.dist*cp*Math.sin(cam.th), ez = cam.tz + cam.dist*Math.sin(cam.ph);
-    let fx = -ex, fy = -ey, fz = cam.tz - ez; const fl = Math.hypot(fx,fy,fz); fx/=fl; fy/=fl; fz/=fl;
+    const cp = Math.cos(cam.ph), ex = cam.tx + cam.dist*cp*Math.cos(cam.th), ey = cam.ty + cam.dist*cp*Math.sin(cam.th), ez = cam.tz + cam.dist*Math.sin(cam.ph);
+    let fx = cam.tx - ex, fy = cam.ty - ey, fz = cam.tz - ez; const fl = Math.hypot(fx,fy,fz); fx/=fl; fy/=fl; fz/=fl;
     let sx = fy, sy = -fx, sz = 0; const sl = Math.hypot(sx,sy) || 1; sx/=sl; sy/=sl;
     const ux = sy*fz - sz*fy, uy = sz*fx - sx*fz, uz = sx*fy - sy*fx;
     const mv = new Float32Array([sx,ux,-fx,0, sy,uy,-fy,0, sz,uz,-fz,0, -(sx*ex+sy*ey+sz*ez), -(ux*ex+uy*ey+uz*ez), (fx*ex+fy*ey+fz*ez), 1]);
     const near = cam.dist/50, far = cam.dist*20 + 800, t = 1/Math.tan(0.35);
     const pr = new Float32Array([t/(w/h),0,0,0, 0,t,0,0, 0,0,(far+near)/(near-far),-1, 0,0,2*far*near/(near-far),0]);
-    const U = n => gl.getUniformLocation(prog, n);
-    gl.uniformMatrix4fv(U('mvp'), false, mul(pr, mv)); gl.uniformMatrix4fv(U('mv'), false, mv);
-    gl.uniform1f(U('clipZ'), clipZ); gl.uniform1f(U('lh'), stripeH);
+    const U = n => gl.getUniformLocation(prog, n), sliced = S.view === 'sliced';
+    S.mvp = mul(pr, mv);
+    gl.uniformMatrix4fv(U('mvp'), false, S.mvp); gl.uniformMatrix4fv(U('mv'), false, mv);
+    const cA = S.cA || [0,0]; gl.uniform3f(U('off'), 0, 0, 0); gl.uniform1f(U('selT'), 0); gl.uniform2f(U('texC'), cA[0], cA[1]);
+    gl.uniform1f(U('clipZ'), sliced ? clipZ : 1e9); gl.uniform1f(U('lh'), stripeH); gl.uniform1i(U('mode'), sliced ? 1 : 0);
+    gl.uniform1f(U('cosT'), Math.cos(num('sAngle',30,5,80)*Math.PI/180)); gl.uniform1f(U('ext'), S.pvExt); gl.uniform1i(U('tex'), 0);
+    gl.enableVertexAttribArray(0); gl.disableVertexAttribArray(1); gl.vertexAttrib1f(1, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
-    gl.uniform1f(U('flat_'), 1); gl.uniform4f(U('col'), .5,.56,.53,.55);
+    gl.uniform1i(U('kind'), 2); gl.uniform4f(U('col'), .5,.56,.53,.55);
     gl.drawArrays(gl.LINES, 0, gridN);
     if (triN){
       gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
-      gl.uniform1f(U('flat_'), 0); gl.uniform4f(U('col'), .22,.72,.52,1);
-      gl.drawArrays(gl.TRIANGLES, 0, triN);
+      gl.bindBuffer(gl.ARRAY_BUFFER, nzBuf); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 0, 0);
+      gl.uniform1f(U('useCol'), S.useCol ? 1 : 0);
+      if (S.useCol){ gl.bindBuffer(gl.ARRAY_BUFFER, colBuf); gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.UNSIGNED_BYTE, true, 0, 0); }
+      gl.uniform1i(U('kind'), 0);
+      const R = S.ranges || [[0, triN]];
+      R.forEach((r, i) => {
+        gl.uniform1f(U('selT'), i === S.sel && R.length > 1 ? 1 : 0);
+        gl.uniform1f(U('clipZ'), sliced ? clipZ : (i === S.sel && S.cutPrev != null ? S.cutPrev : 1e9));
+        gl.drawArrays(gl.TRIANGLES, r[0], r[1]);
+      });
+      gl.uniform1f(U('selT'), 0); gl.uniform1f(U('clipZ'), sliced ? clipZ : 1e9); gl.uniform1f(U('useCol'), 0); gl.disableVertexAttribArray(2);
+      gl.disableVertexAttribArray(1); gl.vertexAttrib1f(1, 0);
+    }
+    if (sliced && supN && $('sSupport').checked && $('showSup').checked){
+      gl.bindBuffer(gl.ARRAY_BUFFER, supBuf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.uniform3f(U('off'), cA[0], cA[1], 0); gl.uniform1i(U('kind'), 1); gl.drawArrays(gl.TRIANGLES, 0, supN); gl.uniform3f(U('off'), 0, 0, 0);
+    }
+    if (sliced && texReady){
+      const e = S.pvExt/2, zq = cutZ + 0.03;
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-e,-e,zq, e,-e,zq, e,e,zq, -e,-e,zq, e,e,zq, -e,e,zq]), gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform3f(U('off'), cA[0], cA[1], 0); gl.uniform1i(U('kind'), 3); gl.drawArrays(gl.TRIANGLES, 0, 6); gl.uniform3f(U('off'), 0, 0, 0);
     }
   }
   const pts = new Map(); let pinch = 0;
-  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); pinch = 0; });
+  let tap = null;
+  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); pinch = 0; tap = pts.size === 1 ? {x:e.clientX, y:e.clientY} : null; });
   cv.addEventListener('pointermove', e => {
     const p = pts.get(e.pointerId); if (!p) return;
+    if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 6) tap = null;
     if (pts.size === 1){ cam.th -= (e.clientX-p[0])*0.01; cam.ph = Math.max(-0.2, Math.min(1.5, cam.ph + (e.clientY-p[1])*0.01)); }
     pts.set(e.pointerId, [e.clientX, e.clientY]);
     if (pts.size === 2){ const a = [...pts.values()], d = Math.hypot(a[0][0]-a[1][0], a[0][1]-a[1][1]);
       if (pinch) cam.dist = Math.max(5, Math.min(5000, cam.dist*pinch/d)); pinch = d; }
     draw();
   });
-  const up = e => { pts.delete(e.pointerId); pinch = 0; };
+  const up = e => { if (tap && e.type === 'pointerup' && pts.size === 1) pickAt(e.clientX, e.clientY); tap = null; pts.delete(e.pointerId); pinch = 0; };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('wheel', e => { e.preventDefault(); cam.dist = Math.max(5, Math.min(5000, cam.dist*(e.deltaY > 0 ? 1.1 : 0.9))); draw(); }, {passive:false});
 
@@ -685,26 +1776,29 @@ const Core = (() => {
   const a = mk(), b = mk(), c = mk(), d = mk();
   function toPath(loops){
     const p = new Path2D();
-    for (const l of loops){ p.moveTo(l[0], l[1]); for (let i=2;i<l.length;i+=2) p.lineTo(l[i], l[i+1]); p.closePath(); }
+    for (const l of loops){ p.moveTo(l[0], l[1]); for (let i=3;i<l.length;i+=3) p.lineTo(l[i], l[i+1]); p.closePath(); }
     return p;
   }
   let pvQueued = false;
   function queueLayer(){ if (pvQueued) return; pvQueued = true; requestAnimationFrame(() => { pvQueued = false; drawLayer(); }); }
 
   function drawLayer(){
-    if (S.noMesh || !S.layers) return;
-    const s = settings(), N = S.layers.N, h = S.layers.h;
-    const k = Math.min(N-1, Math.max(0, (+$('lyr').value) - 1));
-    $('lyrLabel').textContent = `Katman ${k+1} / ${N}, yükseklik ${tr((k+1)*h, 2)} mm`;
-    clipZ = k === N-1 ? 1e9 : (k+1)*h + 1e-4; stripeH = h; draw();
+    if (S.noMesh || !S.G) return;
+    const s = settings(), sl = S.G.sl, N = sl.N, h = sl.h, h0 = sl.h0;
+    const k = Math.min(N-1, Math.max(0, (+$('lyr').value) - 1)), zTop = h0 + k*h, zBot = k === 0 ? 0 : h0 + (k-1)*h;
+    $('lyrLabel').textContent = `Katman ${k+1} / ${N}, yükseklik ${tr(zTop, 2)} mm` + (S.lt ? `, bu katman yaklaşık ${tr(S.lt[k], 1)} sn` : '');
+    clipZ = k === N-1 ? 1e9 : zTop + 1e-4; cutZ = zTop; stripeH = h;
     const dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.round(pv.clientWidth*dpr);
-    if (!W) return;
+    if (!W){ draw(); return; }
     for (const x of [m, a, b, c, d]) if (x.canvas.width !== W){ x.canvas.width = W; x.canvas.height = W; }
-    const ka = Math.max(0, k - Math.max(1, s.botL)), kb = Math.min(N-1, k + Math.max(1, s.topL));
-    const paths = Core.sliceSegs(S.pos, h, N, ka, kb).map(sg => toPath(Core.chain(sg)));
+    const ka = Math.max(0, k - Math.max(1, s.botL)), kb = Math.min(N-1, k + Math.max(1, s.topL)), ks = [];
+    for (let q=ka;q<=kb;q++) ks.push(q);
+    const paths = Core.loopsAt(S.posA, sl, ks).map(toPath);
     const P = j => paths[j-ka];
-    const margin = 4 + s.brim + (s.support ? 4 : 0);
+    const supOn = s.support && $('showSup').checked && S.sup;
+    const margin = 4 + s.brim + (s.support ? 6 : 0);
     const ext = Math.max(S.size[0], S.size[1]) + 2*margin, sc = W/ext, px = 1/sc, R = ext;
+    S.pvExt = ext;
     const T = x => x.setTransform(sc, 0, 0, -sc, W/2, W/2), I = x => x.setTransform(1, 0, 0, 1, 0, 0);
     const clear = x => { I(x); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, W, W); };
     const fillMask = (x, p) => { clear(x); T(x); x.fillStyle = '#fff'; x.fill(p, 'evenodd'); };
@@ -718,8 +1812,8 @@ const Core = (() => {
       for (let i=0;i<=n;i++){ const o = o0 + i*sp; x.moveTo(-R*ca - o*sa, -R*sa + o*ca); x.lineTo(R*ca - o*sa, R*sa + o*ca); }
       x.strokeStyle = col; x.lineWidth = Math.max(w, px); x.stroke();
     }
-    const q = Math.PI/4, alt = k % 2 ? q : 3*q, li = s.lw*1.07, z = (k+0.5)*h;
-    const solidPat = col => x => hatch(x, alt, s.lw, s.lw*0.82, col);
+    const q = Math.PI/4, alt = k % 2 ? q : 3*q, lw = s.wOuter, li = s.wSparse, z = (zTop + zBot)/2;
+    const solidPat = col => x => hatch(x, alt, lw, lw*0.82, col);
     function sparsePat(x){
       const rho = Math.max(s.infill, 0.02), col = COL.sparse, w = li*0.9;
       if (s.infill >= 0.99) return hatch(x, alt, li, w, col);
@@ -740,7 +1834,6 @@ const Core = (() => {
         }
         x.strokeStyle = col; x.lineWidth = Math.max(w, px); x.stroke(); return;
       }
-      // gyroid: wavy lines whose direction and depth of wave change with height
       const sp = Math.max(1.3*li/rho, li*1.3), ph = Math.PI*z/sp, horiz = Math.abs(Math.cos(ph)) >= Math.abs(Math.sin(ph));
       const amp = sp*(0.15 + 0.3*Math.abs(Math.sin(2*ph))), lam = 2*sp, step = lam/8, n = Math.ceil(2*R/sp), np = Math.ceil(2*R/step);
       if (n*np > 60000 || sp*sc < 2) return flat(x, col);
@@ -753,7 +1846,6 @@ const Core = (() => {
       x.strokeStyle = col; x.lineWidth = Math.max(w, px); x.stroke();
     }
 
-    // region that has model in every layer above and below within the shell count: sparse infill goes here
     fillMask(a, P(k)); let allSolid = false;
     for (let j=1;j<=s.topL && !allSolid;j++){ if (k+j > N-1) allSolid = true; else { fillMask(b, P(k+j)); comp(a, b, 'destination-in'); } }
     for (let j=1;j<=s.botL && !allSolid;j++){ if (k-j < 0) allSolid = true; else { fillMask(b, P(k-j)); comp(a, b, 'destination-in'); } }
@@ -761,14 +1853,25 @@ const Core = (() => {
 
     clear(m);
     if (k === 0 && s.brim > 0){ T(m); m.lineJoin = 'round'; m.strokeStyle = COL.brim; m.lineWidth = 2*s.brim; m.stroke(P(0)); I(m); }
-    if (s.support && S.st.ovTris.length){
-      const o = S.st.ovTris, zt = (k+1)*h; clear(b); T(b); b.fillStyle = '#fff'; b.beginPath(); let any = false;
-      for (let i=0;i<o.length && o[i+6] > zt;i+=7){ b.moveTo(o[i], o[i+1]); b.lineTo(o[i+2], o[i+3]); b.lineTo(o[i+4], o[i+5]); b.closePath(); any = true; }
-      if (any){
-        b.fill('nonzero');
-        fillMask(d, P(k)); d.lineJoin = 'round'; d.strokeStyle = '#fff'; d.lineWidth = 1.0; d.stroke(P(k));
-        comp(b, d, 'destination-out');
-        paint(b, x => hatch(x, k % 2 ? 0 : Math.PI/2, 2.5, s.lw, COL.sup));
+    if (supOn){
+      const sp = S.sup;
+      if (sp.type === 'tree' && sp.branches){
+        const br = sp.branches; T(m); m.strokeStyle = COL.sup; m.lineWidth = Math.max(lw, 1.5*px); m.beginPath();
+        for (let i=0;i<br.length;i+=8){
+          if (br[i+2] < zBot || br[i+6] > zTop) continue;
+          const t = br[i+2] === br[i+6] ? 0 : (br[i+2] - z)/(br[i+2] - br[i+6]), tt = Math.min(1, Math.max(0, t));
+          const X = br[i] + (br[i+4]-br[i])*tt, Y = br[i+1] + (br[i+5]-br[i+1])*tt, r = br[i+3] + (br[i+7]-br[i+3])*tt;
+          m.moveTo(X + r, Y); m.arc(X, Y, r, 0, 2*Math.PI);
+        }
+        m.stroke(); I(m);
+      } else if (sp.cols.length){
+        const cl = sp.cols, e = sp.cell/2; clear(b); T(b); b.fillStyle = '#fff'; let any = false;
+        for (let i=0;i<cl.length;i+=4) if (cl[i+2] < zTop && cl[i+3] > zBot){ b.fillRect(cl[i]-e, cl[i+1]-e, sp.cell, sp.cell); any = true; }
+        if (any){
+          fillMask(d, P(k)); d.lineJoin = 'round'; d.strokeStyle = '#fff'; d.lineWidth = 0.8; d.stroke(P(k));
+          comp(b, d, 'destination-out');
+          paint(b, x => hatch(x, k % 2 ? 0 : Math.PI/2, 2.5, lw, COL.sup));
+        }
       }
     }
     const edge = k === 0 || k === N-1;
@@ -782,59 +1885,189 @@ const Core = (() => {
     }
     fillMask(b, P(k));
     paint(b, x => {
-      x.lineJoin = 'round'; const sep = s.lw*sc >= 2.5;
+      x.lineJoin = 'round'; const sep = lw*sc >= 2.5;
       for (let w=s.walls;w>=1;w--){
-        if (sep){ x.strokeStyle = COL.bg; x.lineWidth = 2*w*s.lw; x.stroke(P(k)); }
-        x.strokeStyle = w === 1 ? COL.outer : COL.inner; x.lineWidth = Math.max(px, 2*w*s.lw - (sep ? 1.4*px : 0)); x.stroke(P(k));
+        if (sep){ x.strokeStyle = COL.bg; x.lineWidth = 2*w*lw; x.stroke(P(k)); }
+        x.strokeStyle = w === 1 ? COL.outer : COL.inner; x.lineWidth = Math.max(px, 2*w*lw - (sep ? 1.4*px : 0)); x.stroke(P(k));
       }
     });
+    if (gl){
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pv); texReady = true;
+    }
+    draw();
   }
 
   // ---------- model + results ----------
-  function setModel(pos){ S.pos = pos; S.scale = 1; $('sScale').value = 100; geometryChanged(true); }
-  function geometryChanged(resetLayer){
-    S.size = Core.settle(S.pos); S.st = null; S.layers = null;
-    upload(); recalc(resetLayer);
+  // ---------- parts on the bed ----------
+  const bedHalf = () => [printer().bed[0]/2, printer().bed[1]/2];
+  function mkObj(name, p, ext){ const n = Scene.normalize(p); return {name, pos:n.pos, ext:ext || null, x:n.cx, y:n.cy, w:n.w, d:n.d, h:n.h}; }
+  function groupBox(){ let a = [1e9,1e9,-1e9,-1e9]; for (const o of S.objs){ a[0] = Math.min(a[0], o.x-o.w/2); a[1] = Math.min(a[1], o.y-o.d/2); a[2] = Math.max(a[2], o.x+o.w/2); a[3] = Math.max(a[3], o.y+o.d/2); } return a; }
+  function centreGroup(){ const g = groupBox(), cx = (g[0]+g[2])/2, cy = (g[1]+g[3])/2; S.objs = S.objs.map(o => Object.assign({}, o, {x:o.x-cx, y:o.y-cy})); }
+  function offBed(){ const [hx, hy] = bedHalf(); return S.objs.some(o => Math.abs(o.x)+o.w/2 > hx+0.01 || Math.abs(o.y)+o.d/2 > hy+0.01); }
+  function setParts(list){
+    S.objs = list.map((o, i) => mkObj(o.name || ('Parça ' + (i+1)), o.pos, o.ext));
+    centreGroup();
+    if (S.objs.length > 1 && offBed()) Scene.arrange(S.objs, printer().bed[0], printer().bed[1]);
+    S.sel = S.objs.length === 1 ? 0 : -1; S.undo = null; S.scale = 1; $('sScale').value = 100; S.cutPrev = null;
+    rebuild(true, true);
+  }
+  function setModel(pos){ setParts([{name:'Parça 1', pos}]); }
+  function rebuild(resetLayer, resetCam){
+    let n = 0; for (const o of S.objs) n += o.pos.length;
+    const P = new Float32Array(n); S.ranges = []; let k = 0;
+    for (const o of S.objs){
+      const q = o.pos;
+      for (let i=0;i<q.length;i+=3){ P[k+i] = q[i] + o.x; P[k+i+1] = q[i+1] + o.y; P[k+i+2] = q[i+2]; }
+      S.ranges.push([k/3, q.length/3]); k += q.length;
+    }
+    S.pos = P;
+    const b = Scene.bbox(P); S.cA = [(b[0]+b[3])/2, (b[1]+b[4])/2]; S.size = [b[3]-b[0], b[4]-b[1], b[5]];
+    const A = new Float32Array(n);
+    for (let i=0;i<n;i+=3){ A[i] = P[i]-S.cA[0]; A[i+1] = P[i+1]-S.cA[1]; A[i+2] = P[i+2]; }
+    S.posA = A; S.G = null; S.sup = null; S.supKey = '';
+    let v = 0;
+    for (let i=0;i<A.length;i+=9) v += (A[i]*(A[i+4]*A[i+8]-A[i+5]*A[i+7]) + A[i+1]*(A[i+5]*A[i+6]-A[i+3]*A[i+8]) + A[i+2]*(A[i+3]*A[i+7]-A[i+4]*A[i+6]))/6;
+    S.vol = Math.abs(v);
+    upload(resetCam); renderParts(); recalc(resetLayer);
+  }
+  const hex2rgb = h => { const m = /^#?([0-9a-f]{6})/i.exec(h || ''); if (!m) return [200,200,200]; const v = parseInt(m[1], 16); return [v >> 16, (v >> 8) & 255, v & 255]; };
+  function renderFil(){
+    const el = $('filList');
+    if (!S.fil || !S.usedFil){ el.hidden = true; $('colorNote').textContent = S.fil ? '' : $('colorNote').textContent; for (const id of ['sColors','sColorPct']) $(id).disabled = false; return; }
+    const ids = []; for (let e=1;e<=32;e++) if (S.usedFil & (1 << (e-1))) ids.push(e);
+    el.hidden = false;
+    el.innerHTML = ids.map(e => `<span style="--c:${S.fil.colours[e-1] || '#ccc'}">Filament ${e}${S.fil.ids[e-1] ? ' · ' + String(S.fil.ids[e-1]).replace(/ @.*$/, '').replace(/[<&>]/g, '') : ''}</span>`).join('');
+    for (const id of ['sColors','sColorPct']) $(id).disabled = true;
+    $('colorNote').textContent = ids.length > 1 ? `Renkler dosyadaki boyamadan okundu: ${ids.length} filament, ${S.cplan ? tr(S.cplan.changes) : 0} renk değişimi. Değişim süresini ve atığı aşağıdan değiştirebilirsin.` : 'Dosyada bu tabla için tek filament var.';
+  }
+  function showPlate(pl){
+    const P = S.proj; if (!P) return;
+    setParts(P.parts.filter(p => p.plate === pl).map(p => ({name:p.name, pos:p.pos, ext:p.ext})));
+  }
+  async function allPlates(){
+    const P = S.proj; if (!P) return;
+    const s0 = settings(), rows = []; let tot = 0, totG = 0;
+    $('plateAll').disabled = true;
+    for (const pl of P.plates){
+      $('plateTable').textContent = `Tabla ${pl} hesaplanıyor…`;
+      await new Promise(r => setTimeout(r, 30));
+      const parts = P.parts.filter(p => p.plate === pl); let n = 0; for (const p of parts) n += p.pos.length;
+      const pos = new Float32Array(n); let o = 0; for (const p of parts){ pos.set(p.pos, o); o += p.pos.length; }
+      const size = Core.settle(pos), s = Object.assign({}, s0, {prep:0});
+      const G = Core.analyze(pos, size, s.h, s.h0);
+      if (s.support) G.sup = Core.supports(pos, size, {cosT:Math.cos(s.angle*Math.PI/180), type:s.supType, h:s.h});
+      const loc = [], zmin = Scene.bbox(pos)[2]; o = 0;
+      for (const p of parts){ loc.push({pos:pos.subarray(o, o + p.pos.length), ext:p.ext}); o += p.pos.length; }
+      if (S.fil){
+        const sets = Core.colorLayers(loc, s.h, s.h0, G.sl.N); let used = 0; for (const x of sets) used |= x;
+        if (used & (used - 1)){ const cp = Core.colorPlan(sets, S.fil.flush, S.fil.colours.length, S.fil.mult); s.colors = 2; s.changes = cp.changes; s.purgeVol = cp.changes ? cp.purge*0.82/cp.changes : 0; s.towerVol = S.fil.tower ? (cp.lastChange+1)*s.h*216*(S.fil.towerW/35) : 0; }
+        else { s.colors = 1; s.changes = 0; s.towerVol = 0; }
+      }
+      const e = Core.estimate(G, s); const gf = calGFactor($('sPrinter').value);
+      rows.push([pl, e.print, e.grams*gf]); tot += e.print; totG += e.grams*gf;
+    }
+    const prep = $('sPrep').checked ? printer().prep : 0;
+    $('plateTable').innerHTML = '<table class="ptab"><tbody>' + rows.map(r => `<tr><td>Tabla ${r[0]}</td><td>${fmtTimeText(r[1])}</td><td>${tr(r[2], 1)} g</td></tr>`).join('') +
+      `<tr class="tot"><td>Toplam baskı</td><td>${fmtTimeText(tot)}</td><td>${tr(totG, 1)} g</td></tr>` + (prep ? `<tr><td>Her tabla için hazırlık</td><td>+${fmtTimeText(prep)}</td><td></td></tr>` : '') + '</tbody></table>';
+    $('plateAll').disabled = false;
+  }
+  $('plateSel').addEventListener('change', () => { showPlate(+$('plateSel').value); });
+  $('plateAll').addEventListener('click', allPlates);
+  function renderParts(){
+    const many = S.objs.length > 1, sel = S.sel >= 0 && S.sel < S.objs.length;
+    $('partsInfo').textContent = many ? `${S.objs.length} parça. Listeden ya da görünümde üstüne dokunarak birini seç; işlemler seçili parçaya uygulanır.` : 'Döndürme, taşıma, kesme ve parçalara ayırma bu parçaya uygulanır.';
+    $('partList').hidden = !many;
+    $('partList').innerHTML = S.objs.map((o, i) => `<button type="button" data-i="${i}" aria-pressed="${i === S.sel}">${String(o.name).replace(/[<&>]/g, '')} · ${tr(o.w)}×${tr(o.d)}×${tr(o.h)}</button>`).join('');
+    const need = !sel;
+    for (const id of ['pDel','pOnly']) $(id).disabled = need || !many;
+    for (const id of ['pSplit','rotX','rotY','rotZ','mL','mR','mU','mD','cutBelow','cutAbove']) $(id).disabled = need;
+    $('pArrange').disabled = false; $('pUndo').disabled = !S.undo;
+    if (sel){ const h = S.objs[S.sel].h, el = $('cutZ'); el.max = (Math.max(0.4, h - 0.2)).toFixed(1); el.min = 0.2; if (+el.value > +el.max || +el.value < 0.2) el.value = (h/2).toFixed(1); $('cutVal').textContent = tr(+el.value, 1); }
+  }
+  function snap(){ S.undo = {objs:S.objs.slice(), sel:S.sel}; }
+  function replaceSel(p, ext){ const o = S.objs[S.sel], n = Scene.normalize(p); S.objs[S.sel] = Object.assign({}, o, {pos:n.pos, ext:ext === undefined ? o.ext : ext, w:n.w, d:n.d, h:n.h}); }
+  function pickAt(x, y){
+    if (!S.mvp || !S.objs || S.objs.length < 2) return;
+    const r = cv.getBoundingClientRect(), px = (x - r.left)/r.width*2 - 1, py = 1 - (y - r.top)/r.height*2, M = S.mvp;
+    let best = -1, bestA = Infinity;
+    S.objs.forEach((o, i) => {
+      let a = [1e9,1e9,-1e9,-1e9], ok = true;
+      for (const cx of [o.x-o.w/2, o.x+o.w/2]) for (const cy of [o.y-o.d/2, o.y+o.d/2]) for (const cz of [0, o.h]){
+        const w = M[3]*cx + M[7]*cy + M[11]*cz + M[15]; if (w <= 0){ ok = false; continue; }
+        const X = (M[0]*cx + M[4]*cy + M[8]*cz + M[12])/w, Y = (M[1]*cx + M[5]*cy + M[9]*cz + M[13])/w;
+        a = [Math.min(a[0], X), Math.min(a[1], Y), Math.max(a[2], X), Math.max(a[3], Y)];
+      }
+      if (ok && px >= a[0] && px <= a[2] && py >= a[1] && py <= a[3]){ const ar = (a[2]-a[0])*(a[3]-a[1]); if (ar < bestA){ bestA = ar; best = i; } }
+    });
+    S.sel = best; renderParts(); draw();
   }
   function recalc(resetLayer){
     if (S.noMesh || !S.pos) return;
-    const s = settings(), cosT = Math.cos(s.angle*Math.PI/180);
-    if (!S.st || S.stCos !== cosT){ S.st = Core.stats(S.pos, cosT); S.stCos = cosT; }
-    if (!S.layers || S.layers.h !== s.h){
-      const old = S.layers, frac = old && !resetLayer ? (+$('lyr').value)/old.N : 0.5;
-      S.layers = Core.slice(S.pos, s.h, S.size[2]);
-      $('lyr').max = S.layers.N; $('lyr').value = Math.max(1, Math.min(S.layers.N, Math.round(frac*S.layers.N)));
+    let s = settings(); const key = s.h + '|' + s.h0;
+    if (!S.G || S.Gkey !== key){
+      const old = S.G, frac = old && resetLayer !== true ? (+$('lyr').value)/old.sl.N : 0.5;
+      S.G = Core.analyze(S.posA, S.size, s.h, s.h0); S.Gkey = key;
+      $('lyr').max = S.G.sl.N; $('lyr').value = Math.max(1, Math.min(S.G.sl.N, Math.round(frac*S.G.sl.N)));
+      s = settings();
     }
-    const r = Core.estimate(S.layers, S.st, s);
-    $('timeLabel').textContent = s.copies > 1 ? `Tahmini süre (${s.copies} adet)` : 'Tahmini süre';
+    const supKey = [s.angle, s.supType, s.h, S.pos.length, S.size.join()].join('|');
+    if (S.supKey !== supKey){ S.sup = Core.supports(S.posA, S.size, {cosT:Math.cos(s.angle*Math.PI/180), type:s.supType, h:s.h}); S.supKey = supKey; uploadSup(); }
+    S.G.sup = s.support ? S.sup : null;
+    S.cplan = null;
+    if (S.fil && S.objs.some(o => o.ext)){
+      const sets = Core.colorLayers(S.objs, s.h, s.h0, S.G.sl.N); let used = 0; for (const x of sets) used |= x;
+      S.usedFil = used;
+      if (used & (used - 1)){
+        const cp = Core.colorPlan(sets, S.fil.flush, S.fil.colours.length, S.fil.mult);
+        S.cplan = cp;
+        s.colors = 2; s.changes = cp.changes; s.purgeVol = cp.changes ? cp.purge*0.82/cp.changes : 0;
+        s.towerVol = S.fil.tower ? (cp.lastChange + 1)*s.h*(printer().towerA || 216)*(S.fil.towerW/35) : 0;
+      } else { s.colors = 1; s.changes = 0; s.towerVol = 0; }
+    }
+    renderFil();
+    const r = Core.estimate(S.G, s); S.lt = r.layerT;
+    $('timeLabel').textContent = s.copies > 1 ? `Tahmini toplam süre (${s.copies} adet)` : 'Tahmini toplam süre';
     $('time').innerHTML = fmtTime(r.total);
+    const split = ['Baskı ' + fmtTimeText(r.print)];
+    if (s.prep) split.push('hazırlık ' + fmtTimeText(s.prep));
+    if (r.parts.timelapse > 0) split.push('timelapse ' + fmtTimeText(r.parts.timelapse));
+    $('timeSplit').textContent = split.join(' + ');
+    const gf = calGFactor($('sPrinter').value); for (const k of ['grams','gramsModel','gramsSupport','gramsWaste','meters']) r[k] *= gf;
     $('grams').textContent = tr(r.grams, r.grams < 100 ? 1 : 0);
     $('meters').textContent = tr(r.meters, 1);
     const price = parseFloat($('sPrice').value);
     $('cost').textContent = price > 0 ? tr(r.grams/1000*price, 2) : '–';
-    const names = [['walls','Duvarlar','var(--accent)'],['solid','Dolu katmanlar','var(--seg2)'],['infill','Dolgu','var(--seg3)'],['support','Destek','var(--seg4)'],['other','Hazırlık, geçiş, soğuma','var(--seg5)']];
-    $('bar').innerHTML = names.map(n => `<i style="width:${(r.parts[n[0]]/r.total*100).toFixed(2)}%;background:${n[2]}"></i>`).join('');
-    $('legend').innerHTML = names.filter(n => r.parts[n[0]] > 0.5).map(n => `<span style="--c:${n[2]}">${n[1]} ${fmtTimeText(r.parts[n[0]])}</span>`).join('');
+    const pt = r.parts, other = pt.travel + pt.cooling + pt.prep + pt.timelapse;
+    const rows = [['Duvarlar', pt.walls, 'var(--accent)'], ['Dolu katmanlar', pt.solid, 'var(--seg2)'], ['Dolgu', pt.infill, 'var(--seg3)'], ['Destek', pt.support, 'var(--seg4)'], ['Renk değişimi', pt.color, '#8e6bd8'], ['Hazırlık ve geçiş', other, 'var(--seg5)']];
+    $('bar').innerHTML = rows.map(n => `<i style="width:${(n[1]/r.total*100).toFixed(2)}%;background:${n[2]}"></i>`).join('');
+    $('legend').innerHTML = rows.filter(n => n[1] > 20).map(n => `<span style="--c:${n[2]}">${n[0]} ${fmtTimeText(n[1])}</span>`).join('');
     $('breakdown').hidden = false;
+    const gs = [];
+    if (r.gramsSupport > 0.05) gs.push(`destek ${tr(r.gramsSupport, 1)} g`);
+    if (r.gramsWaste > 0.05) gs.push(`${tr(s.changes)} renk değişimi: atık ve kule ${tr(r.gramsWaste, 1)} g`);
+    $('gramSplit').textContent = gs.length ? `Model ${tr(r.gramsModel, 1)} g, ` + gs.join(', ') : '';
     $('fSize').textContent = `${tr(S.size[0],1)} × ${tr(S.size[1],1)} × ${tr(S.size[2],1)} mm`;
-    $('fVol').textContent = `${tr(S.st.vol/1000, 1)} cm³`;
+    $('fVol').textContent = `${tr(S.vol/1000, 1)} cm³`;
     $('fLayers').textContent = `${tr(r.layers)} katman`;
     $('fTris').textContent = tr(S.pos.length/9);
-    const w = [];
-    if (S.size[0] > 256 || S.size[1] > 256 || S.size[2] > 256) w.push('Model A1 tablasına (256 × 256 × 256 mm) sığmıyor. Ölçeği küçült ya da modeli çevir.');
+    const w = [], bed = printer().bed;
+    if (S.size[0] > bed[0] || S.size[1] > bed[1] || S.size[2] > bed[2]) w.push(`Model ${printer().name} tablasına (${bed[0]} × ${bed[1]} × ${bed[2]} mm) sığmıyor. Ölçeği küçült ya da modeli çevir.`);
+    if (S.objs && S.objs.length > 1 && offBed()) w.push('Bazı parçalar tablanın dışında. "Tablaya diz" ile yerleştir ya da gereksizleri sil.');
     if (Math.max(...S.size) < 2) w.push('Model çok küçük görünüyor. Dosya inç ya da metre ile kaydedilmiş olabilir, ölçeği artırmayı dene (inç için 2540).');
-    if (S.st.ovA > 25 && !s.support) w.push(`Yaklaşık ${tr(S.st.ovA/100, 1)} cm² askıda yüzey var. Destek gerekebilir; "Destek ve kenarlık" bölümünden desteği açarak süreye etkisini gör ya da modeli çevir.`);
+    if (S.sup && S.sup.ovArea > 25 && S.sup.cols.length && !s.support) w.push(`Yaklaşık ${tr(S.sup.ovArea/100, 1)} cm² askıda yüzey var (Model görünümünde turuncu). Destek gerekebilir: "Destek kullan"ı açarak etkisini gör.`);
     $('warn').hidden = !w.length; $('warn').innerHTML = w.join('<br>');
+    $('showSup').parentElement.hidden = !s.support;
     savePrefs(); queueLayer();
   }
   function showSliced(){
     const el = $('sliced');
     if (!S.sliced){ el.hidden = true; return; }
     el.hidden = false;
-    el.innerHTML = `Bu dosya zaten dilimlenmiş. Dilimleyicinin hesabı: <b>${fmtTimeText(S.sliced.time)}</b>` + (S.sliced.grams ? `, ${tr(S.sliced.grams, 1)} g filament` : '') + '. Dosyadaki ayarlar ve yazıcı seninkinden farklı olabilir.';
+    el.innerHTML = `Bu dosya zaten dilimlenmiş. Dilimleyicinin hesabı: <b>${fmtTimeText(S.sliced.time)}</b>` + (S.sliced.print ? ` (baskı ${fmtTimeText(S.sliced.print)})` : '') + (S.sliced.grams ? `, ${tr(S.sliced.grams, 1)} g filament` : '') + '. Dosyadaki ayarlar ve yazıcı seninkinden farklı olabilir.';
   }
   function showNoMesh(){
-    $('time').innerHTML = fmtTime(S.sliced.time); $('timeLabel').textContent = 'Dilimleyicinin süresi';
+    $('time').innerHTML = fmtTime(S.sliced.time); $('timeLabel').textContent = 'Dilimleyicinin süresi'; $('timeSplit').textContent = ''; $('gramSplit').textContent = '';
     $('grams').textContent = S.sliced.grams ? tr(S.sliced.grams, 1) : '–'; $('meters').textContent = '–'; $('cost').textContent = '–';
     $('breakdown').hidden = true; $('warn').hidden = true;
   }
@@ -846,16 +2079,33 @@ const Core = (() => {
     try {
       if (/\.(step|stp|iges|igs|f3d|blend|fbx)$/.test(name)) return fail('Bu dosya türü burada açılamıyor. Gönderen kişiden STL ya da 3MF olarak dışa aktarmasını iste.');
       const buf = await file.arrayBuffer(); let pos = null, sliced = null;
-      if (name.endsWith('.3mf')){ const r = await Core.parse3MF(buf); pos = r.pos; sliced = r.sliced; }
+      let settingsFile = null;
+      let parts = null;
+      S.proj = null; S.fil = null; S.palette = null; S.usedFil = 0; $('plateBox').hidden = true; $('plateTable').textContent = '';
+      if (name.endsWith('.3mf')){
+        $('fileName').textContent = file.name + ': okunuyor…';
+        const r = await Core.read3MF(buf, f => { $('fileName').textContent = `${file.name}: okunuyor %${Math.round(f*100)}`; });
+        parts = r.parts; pos = parts.length ? parts[0].pos : null; sliced = r.sliced; settingsFile = r.settings;
+        if (r.fil && r.fil.colours.length){ S.fil = r.fil; S.palette = r.fil.colours.map(hex2rgb); }
+        S.proj = {parts:r.parts, plates:r.plates};
+        if (r.plates.length > 1){
+          $('plateBox').hidden = false;
+          $('plateSel').innerHTML = r.plates.map(p => `<option value="${p}">Tabla ${p} (${r.parts.filter(q => q.plate === p).length} parça)</option>`).join('');
+        }
+      }
       else if (name.endsWith('.obj')) pos = Core.parseOBJ(buf);
       else if (name.endsWith('.gcode')) sliced = Core.parseGcodeHeader(buf);
       else pos = Core.parseSTL(buf);
       const has = pos && pos.length >= 9;
       if (!has && !sliced) return fail('Dosyada 3B model bulunamadı. Dosya bozuk olabilir ya da desteklenmeyen bir türde.');
-      $('fileName').textContent = file.name;
+      $('fileName').textContent = file.name; S.fileName = file.name;
       S.sliced = sliced; S.noMesh = !has; showSliced();
-      $('modelPanel').hidden = !has; $('layerPanel').hidden = !has;
-      if (has) setModel(pos); else showNoMesh();
+      $('modelPanel').hidden = !has;
+      if (has && settingsFile) applyProject(settingsFile);
+      if (has){ if (S.proj && S.proj.plates.length > 1) showPlate(S.proj.plates[0]); else setParts(parts && parts.length ? parts : [{name:file.name.replace(/\.[^.]+$/, ''), pos}]); } else showNoMesh();
+      if (has && sliced && sliced.print > 0){
+        if (addSample(file.name, sliced.print, true, sliced.grams || 0)) $('fileName').textContent = file.name + ': Bambu ayarları ve gerçek süre okundu, tahmin buna göre ayarlandı.';
+      } else if (has && settingsFile) $('fileName').textContent = file.name + ': dosyadaki baskı ayarları uygulandı.';
     } catch (e) {
       fail('Dosya okunamadı. Dosya bozuk olabilir ya da telefonun bu boyutta bir dosya için yeterli belleği yok.');
     }
@@ -865,53 +2115,75 @@ const Core = (() => {
   $('file').addEventListener('change', e => { const f = e.target.files[0]; if (f) openFile(f); e.target.value = ''; });
   document.addEventListener('dragover', e => e.preventDefault());
   document.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) openFile(f); });
-  function rotate(axis){
-    if (!S.pos) return; const p = S.pos;
-    for (let i=0;i<p.length;i+=3){ const x=p[i], z=p[i+2];
-      if (axis === 'x'){ p[i+2] = p[i+1]; p[i+1] = -z; } else { p[i] = z; p[i+2] = -x; } }
-    geometryChanged(true);
-  }
+  $('partList').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.sel = +b.dataset.i; renderParts(); draw(); });
+  function rotate(axis){ if (S.sel < 0) return; snap(); replaceSel(Scene.rotate(S.objs[S.sel].pos, axis)); rebuild(true, false); }
   $('rotX').addEventListener('click', () => rotate('x'));
   $('rotY').addEventListener('click', () => rotate('y'));
+  $('rotZ').addEventListener('click', () => rotate('z'));
+  const move = (dx, dy) => { if (S.sel < 0) return; snap(); const o = S.objs[S.sel]; S.objs[S.sel] = Object.assign({}, o, {x:o.x+dx, y:o.y+dy}); rebuild(false, false); };
+  $('mL').addEventListener('click', () => move(-5, 0)); $('mR').addEventListener('click', () => move(5, 0));
+  $('mU').addEventListener('click', () => move(0, 5)); $('mD').addEventListener('click', () => move(0, -5));
+  $('pDel').addEventListener('click', () => { if (S.sel < 0 || S.objs.length < 2) return; snap(); S.objs.splice(S.sel, 1); S.objs = S.objs.slice(); S.sel = S.objs.length === 1 ? 0 : -1; rebuild(true, false); });
+  $('pOnly').addEventListener('click', () => { if (S.sel < 0) return; snap(); const o = S.objs[S.sel]; S.objs = [Object.assign({}, o, {x:0, y:0})]; S.sel = 0; rebuild(true, true); });
+  $('pArrange').addEventListener('click', () => { snap(); S.objs = S.objs.map(o => Object.assign({}, o)); const ok = Scene.arrange(S.objs, printer().bed[0], printer().bed[1]); rebuild(false, true); if (!ok) fail('Parçaların hepsi tablaya sığmıyor. Birkaçını sil ya da ölçeği küçült.'); else $('error').hidden = true; });
+  $('pUndo').addEventListener('click', () => { if (!S.undo) return; S.objs = S.undo.objs; S.sel = S.undo.sel; S.undo = null; rebuild(true, false); });
+  $('pSplit').addEventListener('click', () => {
+    if (S.sel < 0) return; const o = S.objs[S.sel], parts = Scene.split(o.pos, o.ext);
+    if (parts.length < 2){ fail('Bu parça tek gövdeden oluşuyor, ayrılacak bir şey yok.'); return; }
+    if (parts.length > 60){ fail(`Bu parça ${parts.length} ayrı gövdeden oluşuyor; bu kadarını ayırmak listeyi kullanılmaz hale getirir.`); return; }
+    $('error').hidden = true; snap();
+    const news = parts.map((p, k) => { const m = mkObj(`${o.name} ${k+1}`, p.pos, p.ext); m.x += o.x; m.y += o.y; return m; });
+    S.objs = S.objs.slice(0, S.sel).concat(news, S.objs.slice(S.sel+1)); S.sel = -1;
+    if (offBed()) Scene.arrange(S.objs, printer().bed[0], printer().bed[1]);
+    rebuild(true, false);
+  });
+  const doCut = above => {
+    if (S.sel < 0) return; const z = +$('cutZ').value, cr = Scene.cut(S.objs[S.sel].pos, z, above, S.objs[S.sel].ext), p = cr.pos;
+    if (p.length < 9){ fail('Bu yükseklikte kesince geriye bir şey kalmıyor.'); return; }
+    $('error').hidden = true; snap(); replaceSel(p, cr.ext); S.cutPrev = null; $('cutBox').open = false; rebuild(true, false);
+  };
+  $('cutBelow').addEventListener('click', () => doCut(false));
+  $('cutAbove').addEventListener('click', () => doCut(true));
+  $('cutZ').addEventListener('input', () => { $('cutVal').textContent = tr(+$('cutZ').value, 1); S.cutPrev = +$('cutZ').value; if (S.view !== 'model') setView('model'); draw(); });
+  $('cutBox').addEventListener('toggle', () => { S.cutPrev = $('cutBox').open && S.sel >= 0 ? +$('cutZ').value : null; if ($('cutBox').open && S.view !== 'model') setView('model'); draw(); });
   $('sScale').addEventListener('change', () => {
-    if (!S.pos) return; const ns = num('sScale',100,1,10000)/100, k = ns/S.scale; if (k === 1) return;
-    for (let i=0;i<S.pos.length;i++) S.pos[i] *= k; S.scale = ns; geometryChanged(false);
+    if (!S.objs) return; const ns = num('sScale',100,1,10000)/100, k = ns/S.scale; if (k === 1) return;
+    S.objs = S.objs.map(o => { const p = new Float32Array(o.pos.length); for (let i=0;i<p.length;i++) p[i] = o.pos[i]*k; return Object.assign({}, o, {pos:p, x:o.x*k, y:o.y*k, w:o.w*k, d:o.d*k, h:o.h*k}); });
+    S.scale = ns; rebuild(false, false);
   });
+  function setView(v){ S.view = v; $('viewModel').setAttribute('aria-pressed', v === 'model'); $('viewSliced').setAttribute('aria-pressed', v === 'sliced'); $('sliceExtra').hidden = v !== 'sliced'; $('viewHint').textContent = v === 'sliced' ? 'Kaydırıcı modeli seçili katmandan keser. Destekler şematik çizilir.' : 'Turuncu yüzeyler destek gerektirebilir.'; if (v === 'sliced') queueLayer(); draw(); }
+  $('viewModel').addEventListener('click', () => setView('model'));
+  $('viewSliced').addEventListener('click', () => setView('sliced'));
+  $('showSup').addEventListener('change', queueLayer);
 
-  function setShells(){ const h = parseFloat($('sLayer').value); $('sTop').value = autoTop(h); $('sBot').value = autoBot(h); }
-  function setMaterial(){ const mt = Core.MATS[$('sMat').value]; if (mt){ $('sFlow').value = mt.flow; $('sMinLayer').value = mt.minLayer; } }
-  $('sPreset').addEventListener('change', () => {
-    const v = $('sPreset').value; if (!v) return;
-    const keep = {sPreset:v, sMat:$('sMat').value, sFlow:$('sFlow').value, sMinLayer:$('sMinLayer').value, sPrice:$('sPrice').value, sCorr:$('sCorr').value, sCopies:$('sCopies').value, sPrep:$('sPrep').checked, sSupport:$('sSupport').checked, sAngle:$('sAngle').value, sBrim:$('sBrim').value};
-    applyPrefs(Object.assign({}, defaults, keep));
-    $('sLayer').value = parseFloat(v); setShells();
-    if (v === '0.2s'){ $('sWalls').value = 6; $('sInfill').value = 25; }
-    $('infillVal').textContent = $('sInfill').value; recalc();
-  });
-  $('sLayer').addEventListener('change', setShells);
-  $('sMat').addEventListener('change', setMaterial);
-  $('resetBtn').addEventListener('click', () => { applyPrefs(defaults); $('infillVal').textContent = $('sInfill').value; recalc(); });
+  $('sPrinter').addEventListener('change', () => { applyPrinterDefaults(); setGrid(); renderCal(); recalc(); });
+  $('sPreset').addEventListener('change', () => { if ($('sPreset').value !== '') { applyPreset(+$('sPreset').value); recalc(); } });
+  $('sMat').addEventListener('change', () => { applyMaterial(); recalc(); });
+  $('sLayer').addEventListener('change', () => { const h = parseFloat($('sLayer').value); setV('sTop', Math.max(3, Math.ceil(1/h - 1e-9))); setV('sBot', Math.max(3, Math.ceil(0.6/h - 1e-9))); });
+  $('resetBtn').addEventListener('click', () => { applyPrinterDefaults(); for (const [id, v] of [['sSupport',false],['sAngle',30],['sBrim',0],['sColors',1],['sColorPct',100],['sCopies',1],['sCorr',100],['sPrep',true],['sMode',1]]) setV(id, v); recalc(); });
   $('sInfill').addEventListener('input', () => { $('infillVal').textContent = $('sInfill').value; });
+  const keepPreset = ['sPrinter','sPreset','sMat','sPrice','sCorr','sCopies','sPrep','sSupport','sSupType','sAngle','sBrim','sMode','sFlow','sMinLayer','sColors','sColorPct','sTChange','sPurge'];
   for (const id of ids){
-    if (id === 'sPreset') continue;
-    $(id).addEventListener(id === 'sInfill' ? 'input' : 'change', () => {
-      if (!['sMat','sPrice','sCorr','sCopies','sPrep','sSupport','sAngle','sBrim','sMode','sFlow','sMinLayer'].includes(id)) $('sPreset').value = '';
-      recalc();
-    });
+    if (['sPrinter','sPreset','sMat'].includes(id)) continue;
+    $(id).addEventListener(id === 'sInfill' ? 'input' : 'change', () => { if (!keepPreset.includes(id)) $('sPreset').value = ''; recalc(); });
   }
-  $('lyr').addEventListener('input', queueLayer);
-  const stepLayer = dlt => { const el = $('lyr'); el.value = Math.max(1, Math.min(+el.max, +el.value + dlt)); queueLayer(); };
+  $('lyr').addEventListener('input', () => { if (S.view !== 'sliced') setView('sliced'); queueLayer(); });
+  const stepLayer = dlt => { const el = $('lyr'); el.value = Math.max(1, Math.min(+el.max, +el.value + dlt)); if (S.view !== 'sliced') setView('sliced'); queueLayer(); };
   $('lyrDown').addEventListener('click', () => stepLayer(-1));
   $('lyrUp').addEventListener('click', () => stepLayer(1));
   window.addEventListener('resize', () => { draw(); queueLayer(); });
 
-  loadPrefs(); $('infillVal').textContent = $('sInfill').value;
-  initGL();
+  // start: defaults for the chosen printer, then whatever was saved
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+  if (saved && saved.sPrinter !== 'a1') saved = null;   // older saves made for another printer
+  applyPrinterDefaults();
+  if (saved){ for (const id of ids) if (id in saved && id !== 'sPrinter'){ if (id === 'sPreset' || id === 'sMat'){ if ([...$(id).options].some(o => o.value === String(saved[id]))) $(id).value = saved[id]; } else setV(id, saved[id]); } if (saved.hidden) S.hidden = saved.hidden; }
+  $('infillVal').textContent = $('sInfill').value;
+  initGL(); setGrid(); renderCal();
   setModel(Core.cube(20));
 })();
+
 </script>
-<script>
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-</script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
 </body>
 </html>
